@@ -65,6 +65,35 @@
   .global-toolbar .count { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
   .global-toolbar .count b { color: #ea3690; }
 
+  /* 数据备份区 */
+  .backup-toolbar {
+    max-width: 1600px;
+    margin: 0 auto 14px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
+    border: 1px solid rgba(234,54,144,0.10);
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .backup-toolbar .label {
+    font-size: 12px; font-weight: bold; color: #ea3690;
+    white-space: nowrap; margin-right: 2px;
+  }
+  .backup-toolbar button {
+    height: 32px; padding: 0 14px; border-radius: 16px;
+    border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
+    font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
+    outline: none; font-family: inherit; white-space: nowrap;
+  }
+  .backup-toolbar button:hover { background: rgba(234,54,144,0.06); }
+  .backup-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
+  .backup-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
+  .backup-toolbar .hint { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
+
   .module-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -72,7 +101,7 @@
     width: 100%;
     max-width: 1600px;
     margin: 0 auto;
-    align-items: stretch;   /* 同一行卡片等高 */
+    align-items: stretch;
   }
   .module-card {
     background: white;
@@ -93,7 +122,7 @@
     border: 0;
     display: block;
     background: #fff;
-    height: 420px;          /* 默认高度，消息到达后按最大值统一调整 */
+    height: 420px;
     min-height: 120px;
   }
   @media (max-width: 900px) {
@@ -102,7 +131,11 @@
     .subtitle { margin-bottom: 10px; }
     .global-toolbar input.new-account { flex-basis: 100%; }
     .global-toolbar .count { margin-left: 0; width: 100%; text-align: right; }
+    .backup-toolbar .hint { margin-left: 0; width: 100%; text-align: right; }
   }
+
+  /* 隐藏文件输入 */
+  #importJsonInput { display: none; }
 </style>
 </head>
 <body>
@@ -116,6 +149,14 @@
     <button id="globalAddBtn">新增</button>
     <button id="globalClearAccountsBtn" class="danger">清空账号</button>
     <span class="count">当前账号：<b id="globalAccountCount">0</b> 个</span>
+  </div>
+
+  <div class="backup-toolbar">
+    <span class="label">数据备份</span>
+    <button id="exportAllBtn">导出全部数据</button>
+    <button id="importAllBtn">导入全部数据</button>
+    <input type="file" id="importJsonInput" accept=".json,application/json">
+    <span class="hint">换设备时：旧设备导出 JSON → 传到新设备 → 新设备导入</span>
   </div>
 
   <div class="module-grid">
@@ -139,6 +180,8 @@
 
   <script>
     const ACCOUNTS_STORAGE_KEY = 'bang_global_accounts';
+    const STORAGE_PREFIX = 'bang_';
+
     function loadGlobalAccounts() {
       try {
         const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
@@ -156,6 +199,7 @@
       localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(arr));
     }
     let globalAccounts = loadGlobalAccounts();
+
     function parseNames(input) {
       if (!input || typeof input !== 'string') return [];
       const parts = input.split(/[,，\s]+/);
@@ -167,6 +211,7 @@
       });
       return result;
     }
+
     function broadcastAccountsChanged() {
       document.querySelectorAll('.module-card iframe').forEach(iframe => {
         try {
@@ -177,10 +222,12 @@
         } catch(e) {}
       });
     }
+
     function updateGlobalCount() {
       const el = document.getElementById('globalAccountCount');
       if (el) el.textContent = globalAccounts.length;
     }
+
     function addGlobalAccounts(inputEl) {
       const names = parseNames(inputEl.value);
       if (names.length === 0) { inputEl.value = ''; return; }
@@ -200,6 +247,7 @@
         alert(`以下账号已存在，已跳过：\n${skipped.join('、')}`);
       }
     }
+
     function clearGlobalAccounts() {
       if (globalAccounts.length === 0) { alert('当前已经没有账号了'); return; }
       if (!confirm('确定要清空所有统一账号吗？各模块中对应的账号数据也会被移除，此操作不可撤销。')) return;
@@ -208,6 +256,7 @@
       updateGlobalCount();
       broadcastAccountsChanged();
     }
+
     function initGlobalToolbar() {
       updateGlobalCount();
       const input = document.getElementById('globalNewAccount');
@@ -224,7 +273,115 @@
       clearBtn.addEventListener('click', clearGlobalAccounts);
     }
 
-    /* ===== 高度：收集各模块上报高度，取最大值统一设置所有 iframe ===== */
+    // ===== 导出全部数据 =====
+    function todayStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function exportAllData() {
+      const payload = {};
+      let count = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(STORAGE_PREFIX)) {
+          payload[key] = localStorage.getItem(key);
+          count++;
+        }
+      }
+      if (count === 0) {
+        alert('当前没有任何可导出的数据');
+        return;
+      }
+
+      const exportObj = {
+        app: '打榜数据录入',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        data: payload
+      };
+
+      const json = JSON.stringify(exportObj, null, 2);
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `打榜全部数据_${todayStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ===== 导入全部数据 =====
+    function importAllData(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const text = e.target.result;
+          const parsed = JSON.parse(text);
+          if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
+            alert('文件格式不正确：缺少 data 字段');
+            return;
+          }
+
+          // 校验：data 的键应该都是字符串，值都是字符串（localStorage 只存字符串）
+          const dataObj = parsed.data;
+          const keys = Object.keys(dataObj);
+          if (keys.length === 0) {
+            alert('文件中没有任何数据');
+            return;
+          }
+
+          const bangKeys = keys.filter(k => k.startsWith(STORAGE_PREFIX));
+          if (bangKeys.length === 0) {
+            alert('文件中没有找到本应用的数据（未找到 bang_ 开头的键）');
+            return;
+          }
+
+          let summary = `将导入 ${bangKeys.length} 项数据，覆盖当前设备的对应数据。\n\n包含：\n`;
+          bangKeys.slice(0, 8).forEach(k => { summary += `- ${k}\n`; });
+          if (bangKeys.length > 8) summary += `- ……等共 ${bangKeys.length} 项\n`;
+          summary += '\n确定要导入吗？当前设备的相关数据会被覆盖，此操作不可撤销。';
+
+          if (!confirm(summary)) return;
+
+          // 写入
+          bangKeys.forEach(k => {
+            const v = dataObj[k];
+            localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+          });
+
+          alert('导入成功，页面将刷新以加载新数据。');
+          location.reload();
+        } catch (err) {
+          console.error(err);
+          alert('导入失败：' + err.message);
+        }
+      };
+      reader.onerror = function() {
+        alert('读取文件失败');
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function initBackupToolbar() {
+      const exportBtn = document.getElementById('exportAllBtn');
+      const importBtn = document.getElementById('importAllBtn');
+      const fileInput = document.getElementById('importJsonInput');
+
+      exportBtn.addEventListener('click', exportAllData);
+
+      importBtn.addEventListener('click', () => {
+        fileInput.value = '';
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', function(e) {
+        const file = e.target.files && e.target.files[0];
+        if (file) importAllData(file);
+      });
+    }
+
+    // ===== 高度统一 =====
     const IFRAME_MODULE_MAP = {
       '由你积分': 'youni',
       '电力（每 4 小时一轮）': 'power',
@@ -238,7 +395,7 @@
       MODULE_IFRAME_MAP[moduleName] = iframe;
     });
 
-    const moduleHeights = {};   // { moduleName: height }
+    const moduleHeights = {};
 
     function applyUniformHeight() {
       const values = Object.values(moduleHeights).filter(h => typeof h === 'number' && h > 0);
@@ -253,7 +410,6 @@
     window.addEventListener('message', function(e) {
       if (!e.data) return;
 
-      // 子页面请求删除统一账号
       if (e.data.type === 'delete-account') {
         const name = e.data.account;
         if (!name) return;
@@ -267,7 +423,6 @@
         return;
       }
 
-      // 高度上报
       if (e.data.type === 'resize') {
         const moduleName = e.data.module;
         const h = Number(e.data.height) || 0;
@@ -309,6 +464,7 @@
     });
 
     initGlobalToolbar();
+    initBackupToolbar();
   </script>
 </body>
 </html>

@@ -8,7 +8,6 @@ body {
   display: flex;
   flex-direction: column;
   padding: 8px;
-  /* 不设 height / min-height，整页高度完全由内容决定 */
 }
 
 /* ===== 统计卡片 ===== */
@@ -65,14 +64,16 @@ body {
 .toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
 .toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
 
-/* ===== 表格容器：高度完全由表格内容决定 ===== */
+/* ===== 表格容器：只横向滚动，竖向高度自适应 ===== */
 .table-box {
   background: white;
   border-radius: 8px;
   padding: 4px;
   border: 1px solid #f3e6ee;
-  height: auto;          /* 不撑满、不滚动 */
-  overflow: visible;
+  overflow-x: auto;            /* 只横向滚动 */
+  overflow-y: visible;         /* 竖向不滚动，高度由内容决定 */
+  -webkit-overflow-scrolling: touch;
+  position: relative;
 }
 
 /* ===== 表格通用 ===== */
@@ -81,9 +82,11 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   font-size: 11px;
-  min-width: 420px;
+  min-width: 520px;
   table-layout: fixed;
 }
+
+/* 表头：固定在 table-box 内部顶部（横向滚动时保持） */
 thead th {
   background: #ea3690;
   color: #fff;
@@ -94,13 +97,24 @@ thead th {
   white-space: nowrap;
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   border: 1px solid rgba(255,255,255,0.3);
 }
-thead th:first-child { border-top-left-radius: 6px; }
-thead th:last-child { border-top-right-radius: 6px; }
+thead th:first-child {
+  border-top-left-radius: 6px;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  background: #ea3690;
+  text-align: left;
+  padding-left: 6px;
+}
+thead th:last-child {
+  border-top-right-radius: 6px;
+}
 
-/* ===== 统一行高（所有模块一致） ===== */
+/* ===== 行高 ===== */
 tbody tr {
   height: 42px;
 }
@@ -110,9 +124,10 @@ tbody td {
   vertical-align: middle;
   border-bottom: 1px solid #f3e6ee;
   white-space: nowrap;
+  background: #fff;
 }
-tbody tr:nth-child(even) { background: #ea36900a; }
-tbody tr:hover { background: rgba(234,54,144,0.05); }
+tbody tr:nth-child(even) td { background: #fdf7fa; }
+tbody tr:hover td { background: rgba(234,54,144,0.05); }
 
 tfoot tr {
   height: 42px;
@@ -125,7 +140,7 @@ tfoot td {
   font-weight: bold;
 }
 
-/* 账号列 */
+/* 账号列：固定在左侧 */
 .account-cell {
   text-align: left !important;
   font-weight: bold;
@@ -135,7 +150,14 @@ tfoot td {
   width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #fff;
 }
+tbody tr:nth-child(even) .account-cell { background: #fdf7fa; }
+tbody tr:hover .account-cell { background: rgba(234,54,144,0.05); }
+
 .account-text {
   display: block;
   width: 100%;
@@ -209,4 +231,5 @@ input.score::placeholder { color: #ccc; font-weight: normal; text-align: center;
   .stats-row { gap: 5px; }
   .stat-card .s-value { font-size: 15px; }
   .toolbar button { min-width: 64px; font-size: 11px; padding: 6px 4px; }
+  table { min-width: 460px; }
 }

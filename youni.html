@@ -6,8 +6,67 @@
 <title>由你积分</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  table { min-width: 600px; }
-  /* 删除按钮 */
+  table { min-width: 640px; }
+
+  .platform-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 38px;
+    padding: 2px 0;
+  }
+
+  .platform-cell input.score {
+    margin: 0;
+    width: 56px;
+    max-width: 56px;
+    flex: 0 0 56px;
+  }
+
+  .daily-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid #f0d6e4;
+    background: white;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.15s;
+    font-size: 11px;
+    color: transparent;
+    font-weight: bold;
+    user-select: none;
+    flex: 0 0 18px;
+  }
+  .daily-check:hover { border-color: #f97316; }
+  .daily-check.checked {
+    background: #f97316;
+    border-color: #f97316;
+    color: #fff;
+  }
+
+  .col-total-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+  }
+  .col-total-wrap .col-total {
+    width: 56px;
+    flex: 0 0 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .col-total-wrap .total-spacer {
+    width: 18px;
+    flex: 0 0 18px;
+  }
+
   .del-btn {
     width: 24px; height: 24px; border-radius: 50%;
     border: 1px solid rgba(231,76,60,0.35);
@@ -16,13 +75,16 @@
     transition: 0.15s; font-family: inherit; padding: 0;
   }
   .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #e74c3c; }
+
+  .stats-row.two {
+    grid-template-columns: repeat(2, 1fr);
+  }
 </style>
 </head>
 <body>
-  <div class="stats-row">
+  <div class="stats-row two">
     <div class="stat-card"><div class="s-label">当前总分</div><div class="s-value" id="totalScore">0</div></div>
-    <div class="stat-card done"><div class="s-label">已完成账号</div><div class="s-value" id="doneAccounts">0 / 0</div></div>
-    <div class="stat-card done"><div class="s-label">已完成平台</div><div class="s-value" id="donePlatforms">0 / 5</div></div>
+    <div class="stat-card done"><div class="s-label">已打投账号</div><div class="s-value" id="doneCount">0 / 0</div></div>
   </div>
 
   <div class="toolbar">
@@ -37,12 +99,13 @@
 <script>
 (function(){
   const PLATFORMS = ['q音', '酷狗', '酷我', '波点', '波点2'];
-  const DONE_THRESHOLD = 1;
   const MODULE_TITLE = '由你积分';
   const DATA_STORAGE_KEY = 'bang_youni_scores';
 
   let ACCOUNTS = [];
   let data = {};
+  let daily = {};
+  let dailyDate = '';
 
   function todayStr() {
     const d = new Date();
@@ -76,24 +139,68 @@
   function loadData() {
     try {
       const raw = localStorage.getItem(DATA_STORAGE_KEY);
-      if (raw) { const obj = JSON.parse(raw); if (obj && typeof obj === 'object') return obj; }
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object') {
+          if (obj.scores && typeof obj.scores === 'object') {
+            return {
+              scores: obj.scores,
+              daily: obj.daily || {},
+              dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : ''
+            };
+          }
+          return { scores: obj, daily: {}, dailyDate: '' };
+        }
+      }
     } catch(e) {}
-    return {};
+    return { scores: {}, daily: {}, dailyDate: '' };
   }
-  function saveData() { localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data)); }
+  function saveData() {
+    localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify({
+      scores: data,
+      daily: daily,
+      dailyDate: dailyDate
+    }));
+  }
+
+  function checkDailyReset() {
+    const today = todayStr();
+    if (dailyDate === today) return false;
+
+    ACCOUNTS.forEach(a => {
+      if (!daily[a]) daily[a] = {};
+      PLATFORMS.forEach(p => { daily[a][p] = false; });
+    });
+    dailyDate = today;
+    saveData();
+    return true;
+  }
 
   function syncDataWithAccounts() {
-    const normalizedData = {};
+    const normalizedScores = {};
     Object.keys(data).forEach(k => {
       const nk = normalizeName(k);
-      if (!normalizedData[nk]) normalizedData[nk] = data[k];
+      if (!normalizedScores[nk]) normalizedScores[nk] = data[k];
     });
-    data = normalizedData;
+    data = normalizedScores;
+
+    const normalizedDaily = {};
+    Object.keys(daily).forEach(k => {
+      const nk = normalizeName(k);
+      if (!normalizedDaily[nk]) normalizedDaily[nk] = daily[k];
+    });
+    daily = normalizedDaily;
+
     ACCOUNTS.forEach(a => {
       if (!data[a]) data[a] = {};
-      PLATFORMS.forEach(p => { if (data[a][p] === undefined) data[a][p] = ''; });
+      if (!daily[a]) daily[a] = {};
+      PLATFORMS.forEach(p => {
+        if (data[a][p] === undefined) data[a][p] = '';
+        if (daily[a][p] === undefined) daily[a][p] = false;
+      });
     });
     Object.keys(data).forEach(a => { if (!ACCOUNTS.includes(a)) delete data[a]; });
+    Object.keys(daily).forEach(a => { if (!ACCOUNTS.includes(a)) delete daily[a]; });
     ACCOUNTS = [...new Set(ACCOUNTS)];
   }
 
@@ -108,22 +215,37 @@
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${escapeHtml(a)}</span></td>
           ${PLATFORMS.map(p => {
             const val = (data[a] && data[a][p]) ? data[a][p] : '';
-            return `<td><div class="cell-inner"><input class="score" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" value="${escapeHtml(val)}"></div></td>`;
+            const isDone = !!(daily[a] && daily[a][p]);
+            return `<td>
+              <div class="platform-cell">
+                <input class="score" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" value="${escapeHtml(val)}">
+                <div class="daily-check ${isDone ? 'checked' : ''}" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" title="${isDone ? '点击取消每日任务' : '点击标记每日任务完成'}">${isDone ? '✓' : ''}</div>
+              </div>
+            </td>`;
           }).join('')}
           <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
         </tr>
       `).join('');
     }
 
+    const footCells = PLATFORMS.map((_, i) => `
+      <td>
+        <div class="col-total-wrap">
+          <div class="col-total" id="ct-${i}">0</div>
+          <div class="total-spacer"></div>
+        </div>
+      </td>
+    `).join('');
+
     box.innerHTML = `<table>
       <colgroup>
-        <col style="width:100px">
+        <col style="width:84px">
         <col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%">
-        <col style="width:40px">
+        <col style="width:34px">
       </colgroup>
       <thead><tr><th style="text-align:left;padding-left:6px;">账号</th>${PLATFORMS.map(p => `<th>${p}</th>`).join('')}<th>操作</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td class="account-cell" style="color:#ea3690;">平台合计</td>${PLATFORMS.map((_, i) => `<td><div class="col-total" id="ct-${i}">0</div></td>`).join('')}<td></td></tr></tfoot>
+      <tfoot><tr><td class="account-cell" style="color:#ea3690;">平台合计</td>${footCells}<td></td></tr></tfoot>
     </table>`;
 
     box.querySelectorAll('input.score').forEach(inp => {
@@ -134,6 +256,17 @@
         saveData();
         updateStats();
         notifyResize();
+      });
+    });
+
+    box.querySelectorAll('.daily-check').forEach(el => {
+      el.addEventListener('click', function(){
+        const a = this.dataset.acc, p = this.dataset.pf;
+        if (!daily[a]) daily[a] = {};
+        daily[a][p] = !daily[a][p];
+        if (dailyDate !== todayStr()) dailyDate = todayStr();
+        saveData();
+        renderAll();
       });
     });
 
@@ -150,25 +283,32 @@
   function updateStats() {
     let grand = 0;
     const colTotals = PLATFORMS.map(() => 0);
-    const colFilled = PLATFORMS.map(() => 0);
-    let doneAcc = 0;
+    let checkedCount = 0;
+
     ACCOUNTS.forEach(a => {
-      let filled = 0;
       PLATFORMS.forEach((p, idx) => {
         const raw = (data[a] && data[a][p] !== undefined) ? data[a][p] : '';
         const n = parseInt(raw, 10);
         const val = isNaN(n) ? 0 : n;
-        grand += val; colTotals[idx] += val;
-        if (!isNaN(n) && n >= DONE_THRESHOLD) { filled++; colFilled[idx]++; }
+        grand += val;
+        colTotals[idx] += val;
+
+        if (daily[a] && daily[a][p]) checkedCount++;
       });
-      if (filled === PLATFORMS.length) doneAcc++;
     });
-    PLATFORMS.forEach((_, idx) => { const el = document.getElementById(`ct-${idx}`); if (el) el.textContent = colTotals[idx]; });
-    let donePf = 0;
-    colFilled.forEach(c => { if (c === ACCOUNTS.length && ACCOUNTS.length > 0) donePf++; });
-    const t = document.getElementById('totalScore'); if (t) t.textContent = grand.toLocaleString();
-    const da = document.getElementById('doneAccounts'); if (da) da.textContent = `${doneAcc} / ${ACCOUNTS.length}`;
-    const dp = document.getElementById('donePlatforms'); if (dp) dp.textContent = `${donePf} / ${PLATFORMS.length}`;
+
+    PLATFORMS.forEach((_, idx) => {
+      const el = document.getElementById(`ct-${idx}`);
+      if (el) el.textContent = colTotals[idx];
+    });
+
+    const t = document.getElementById('totalScore');
+    if (t) t.textContent = grand.toLocaleString();
+
+    // 已打投账号：已勾选 / 总可勾选（账号数 × 平台数）
+    const total = ACCOUNTS.length * PLATFORMS.length;
+    const d = document.getElementById('doneCount');
+    if (d) d.textContent = `${checkedCount} / ${total}`;
 
     notifyResize();
   }
@@ -176,18 +316,38 @@
   function clearAllScores() {
     if (!ACCOUNTS.length) { alert('当前没有账号，无需清空数据'); return; }
     let has = false;
-    ACCOUNTS.forEach(a => PLATFORMS.forEach(p => { if (data[a] && data[a][p] && String(data[a][p]).trim() !== '') has = true; }));
+    ACCOUNTS.forEach(a => {
+      PLATFORMS.forEach(p => {
+        if (data[a] && data[a][p] && String(data[a][p]).trim() !== '') has = true;
+        if (daily[a] && daily[a][p]) has = true;
+      });
+    });
     if (!has) { alert('当前所有账号数据已经是空的'); return; }
-    if (!confirm('确定要清空所有账号的分值数据吗？账号列表将保留，但所有平台的分数会被重置为空。')) return;
-    ACCOUNTS.forEach(a => { if (!data[a]) data[a] = {}; PLATFORMS.forEach(p => data[a][p] = ''); });
+    if (!confirm('确定要清空所有账号的分值和每日任务记录吗？账号列表将保留。')) return;
+    ACCOUNTS.forEach(a => {
+      if (!data[a]) data[a] = {};
+      if (!daily[a]) daily[a] = {};
+      PLATFORMS.forEach(p => {
+        data[a][p] = '';
+        daily[a][p] = false;
+      });
+    });
+    dailyDate = todayStr();
     saveData();
     renderAll();
   }
 
   function exportCSV() {
     if (!ACCOUNTS.length) { alert('当前没有账号，无法导出'); return; }
-    const rows = [['账号', ...PLATFORMS].join(',')];
+    const header = ['账号'];
+    PLATFORMS.forEach(p => {
+      header.push(`${p}分值`);
+      header.push(`${p}任务`);
+    });
+    const rows = [header.join(',')];
+
     const colTotals = PLATFORMS.map(() => 0);
+
     ACCOUNTS.forEach(a => {
       const cells = [a];
       PLATFORMS.forEach((p, idx) => {
@@ -196,10 +356,18 @@
         const val = isNaN(n) ? '' : n;
         cells.push(val);
         if (!isNaN(n)) colTotals[idx] += n;
+        cells.push(daily[a] && daily[a][p] ? '1' : '0');
       });
       rows.push(cells.join(','));
     });
-    rows.push(['平台合计', ...colTotals].join(','));
+
+    const totalCells = ['平台合计'];
+    PLATFORMS.forEach((p, idx) => {
+      totalCells.push(colTotals[idx]);
+      totalCells.push('');
+    });
+    rows.push(totalCells.join(','));
+
     const csv = '\uFEFF' + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -233,36 +401,76 @@
         const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
         if (lines.length < 2) { alert('CSV 内容为空或格式不正确'); return; }
         const header = parseCSVLine(lines[0]).map(s => s.trim());
-        const platformCol = {};
-        PLATFORMS.forEach(pf => { const idx = header.indexOf(pf); if (idx !== -1) platformCol[pf] = idx; });
-        if (Object.keys(platformCol).length === 0) { alert('CSV 表头中没有找到平台列（q音/酷狗/酷我/波点/波点2）'); return; }
 
-        const importedData = {};
+        const scoreCols = {};
+        const taskCols = {};
+
+        PLATFORMS.forEach(pf => {
+          const scoreIdx = header.indexOf(`${pf}分值`);
+          const taskIdx = header.indexOf(`${pf}任务`);
+          if (scoreIdx !== -1) scoreCols[pf] = scoreIdx;
+          if (taskIdx !== -1) taskCols[pf] = taskIdx;
+
+          if (scoreIdx === -1) {
+            const oldIdx = header.indexOf(pf);
+            if (oldIdx !== -1) scoreCols[pf] = oldIdx;
+          }
+        });
+
+        if (Object.keys(scoreCols).length === 0) {
+          alert('CSV 表头中没有找到平台列（q音/酷狗/酷我/波点/波点2 或 q音分值 等）');
+          return;
+        }
+
+        const importedScores = {};
+        const importedDaily = {};
+
         for (let i = 1; i < lines.length; i++) {
           const cells = parseCSVLine(lines[i]);
           const rawName = cells[0] ? cells[0].trim() : '';
           if (!rawName || rawName === '平台合计') continue;
           const accName = normalizeName(rawName);
-          if (!importedData[accName]) importedData[accName] = {};
+          if (!importedScores[accName]) importedScores[accName] = {};
+          if (!importedDaily[accName]) importedDaily[accName] = {};
+
           PLATFORMS.forEach(pf => {
-            const colIdx = platformCol[pf]; let val = '';
-            if (colIdx !== undefined && colIdx < cells.length) {
-              const raw = cells[colIdx].trim();
+            const scIdx = scoreCols[pf];
+            let val = '';
+            if (scIdx !== undefined && scIdx < cells.length) {
+              const raw = cells[scIdx].trim();
               if (raw !== '') { const n = parseInt(raw, 10); val = isNaN(n) ? '' : String(Math.max(0, n)); }
             }
-            importedData[accName][pf] = val;
+            importedScores[accName][pf] = val;
+
+            const tcIdx = taskCols[pf];
+            if (tcIdx !== undefined && tcIdx < cells.length) {
+              const raw = cells[tcIdx].trim();
+              importedDaily[accName][pf] = (raw === '1' || raw === 'true' || raw === '是');
+            } else {
+              importedDaily[accName][pf] = false;
+            }
           });
         }
-        if (Object.keys(importedData).length === 0) { alert('没有在 CSV 中解析到有效账号，请检查第一列是否为账号名'); return; }
+
+        if (Object.keys(importedScores).length === 0) {
+          alert('没有在 CSV 中解析到有效账号，请检查第一列是否为账号名');
+          return;
+        }
 
         data = {};
+        daily = {};
         ACCOUNTS.forEach(a => {
           data[a] = {};
+          daily[a] = {};
           PLATFORMS.forEach(p => {
-            data[a][p] = (importedData[a] && importedData[a][p] !== undefined) ? importedData[a][p] : '';
+            data[a][p] = (importedScores[a] && importedScores[a][p] !== undefined) ? importedScores[a][p] : '';
+            daily[a][p] = (importedDaily[a] && importedDaily[a][p]) ? true : false;
           });
         });
-        saveData(); renderAll();
+        dailyDate = todayStr();
+
+        saveData();
+        renderAll();
         alert('导入完成（已按当前统一账号列表匹配数据）');
       } catch(err) { console.error(err); alert('CSV 解析失败：' + err.message); }
     };
@@ -273,15 +481,26 @@
     if (!e.data || e.data.type !== 'accounts-changed') return;
     const incoming = Array.isArray(e.data.accounts) ? e.data.accounts : [];
     ACCOUNTS = incoming.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
-    data = loadData();
+    const loaded = loadData();
+    data = loaded.scores;
+    daily = loaded.daily;
+    dailyDate = loaded.dailyDate;
     syncDataWithAccounts();
-    saveData();
+    if (checkDailyReset()) saveData();
     renderAll();
   });
 
   function init() {
-    data = loadData();
+    const loaded = loadData();
+    data = loaded.scores;
+    daily = loaded.daily;
+    dailyDate = loaded.dailyDate;
+
+    syncDataWithAccounts();
+    if (checkDailyReset()) saveData();
+
     renderAll();
+
     document.getElementById('importBtn').addEventListener('click', () => {
       const fi = document.getElementById('fileInput');
       fi.value = ''; fi.click();
@@ -291,6 +510,16 @@
     });
     document.getElementById('exportBtn').addEventListener('click', exportCSV);
     document.getElementById('clearDataBtn').addEventListener('click', clearAllScores);
+
+    setInterval(() => {
+      if (checkDailyReset()) renderAll();
+    }, 60 * 1000);
+
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        if (checkDailyReset()) renderAll();
+      }
+    });
   }
   init();
 })();
