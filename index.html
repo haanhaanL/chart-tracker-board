@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>打榜数据录入 · 汇总</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: #faf7f9;
+    min-height: 100vh;
+    padding: 6px;
+    color: #333;
+  }
+  h1 {
+    text-align: center;
+    color: #ea3690;
+    font-size: 18px;
+    margin: 22px 0 10px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #999;
+    font-size: 12px;
+    margin-bottom: 18px;
+  }
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  .module-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
+    border: 1px solid rgba(234,54,144,0.10);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .module-card .module-title {
+    background: #ea3690;
+    color: #fff;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 7px 14px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .module-card iframe {
+    width: 100%;
+    border: 0;
+    display: block;
+    background: #fff;
+    min-height: 120px;
+  }
+  @media (max-width: 900px) {
+    .module-grid { grid-template-columns: 1fr; gap: 10px; }
+    h1 { font-size: 16px; margin: 16px 0 8px; }
+    .subtitle { margin-bottom: 16px; }
+  }
+</style>
+</head>
+<body>
+  <h1>打榜数据录入</h1>
+  <div class="subtitle">账号 × 多平台 · 多模块（各模块独立维护）</div>
+
+  <div class="module-grid">
+    <div class="module-card">
+      <div class="module-title">由你积分</div>
+      <iframe src="youni.html" title="由你积分"></iframe>
+    </div>
+    <div class="module-card">
+      <div class="module-title">电力（每 4 小时一轮）</div>
+      <iframe src="power.html" title="电力"></iframe>
+    </div>
+    <div class="module-card">
+      <div class="module-title">金币</div>
+      <iframe src="coin.html" title="金币"></iframe>
+    </div>
+    <div class="module-card">
+      <div class="module-title">刷播</div>
+      <iframe src="play.html" title="刷播"></iframe>
+    </div>
+  </div>
+
+  <script>
+    // 各模块 iframe 选择器映射
+    const IFRAME_MAP = {
+      youni: 'iframe[title="由你积分"]',
+      power: 'iframe[title="电力"]',
+      coin:  'iframe[title="金币"]',
+      play:  'iframe[title="刷播"]'
+    };
+
+    // 监听子页面 postMessage 的高度变化
+    window.addEventListener('message', function(e) {
+      if (!e.data || e.data.type !== 'resize') return;
+      const sel = IFRAME_MAP[e.data.module];
+      if (!sel) return;
+      const iframe = document.querySelector(sel);
+      if (iframe && typeof e.data.height === 'number' && e.data.height > 0) {
+        iframe.style.height = e.data.height + 'px';
+      }
+    });
+
+    // 首次加载时，等待 iframe 内容就绪后读取高度（作为 postMessage 的兜底）
+    function syncIframeHeight(iframe) {
+      try {
+        const doc = iframe.contentWindow.document;
+        const h = Math.max(
+          doc.body.scrollHeight,
+          doc.documentElement.scrollHeight,
+          doc.body.offsetHeight,
+          doc.documentElement.offsetHeight
+        );
+        if (h > 0) iframe.style.height = h + 'px';
+      } catch (err) {
+        // 跨域或未就绪时忽略，等 postMessage 通知
+      }
+    }
+
+    // 给每个 iframe 绑定 load 兜底同步
+    document.querySelectorAll('.module-card iframe').forEach(iframe => {
+      iframe.addEventListener('load', function() {
+        syncIframeHeight(this);
+        // 部分浏览器 load 时高度尚未最终确定，延迟再同步一次
+        setTimeout(() => syncIframeHeight(this), 300);
+      });
+    });
+  </script>
+</body>
+</html>
