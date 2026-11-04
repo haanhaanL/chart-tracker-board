@@ -88,18 +88,15 @@
   </div>
 
   <div class="toolbar">
-    <button id="importBtn">读取 CSV</button>
-    <button id="exportBtn">导出 CSV</button>
-    <button id="clearDataBtn" class="danger">清空数据</button>
+    <button id="clearScoresBtn" class="danger">清空积分</button>
+    <button id="clearTasksBtn" class="danger">清空任务</button>
   </div>
 
   <div class="table-box" id="tableBox"></div>
-  <input type="file" id="fileInput" accept=".csv,text/csv">
 
 <script>
 (function(){
   const PLATFORMS = ['q音', '酷狗', '酷我', '波点', '波点2'];
-  const MODULE_TITLE = '由你积分';
   const DATA_STORAGE_KEY = 'bang_youni_scores';
 
   let ACCOUNTS = [];
@@ -305,7 +302,6 @@
     const t = document.getElementById('totalScore');
     if (t) t.textContent = grand.toLocaleString();
 
-    // 已打投账号：已勾选 / 总可勾选（账号数 × 平台数）
     const total = ACCOUNTS.length * PLATFORMS.length;
     const d = document.getElementById('doneCount');
     if (d) d.textContent = `${checkedCount} / ${total}`;
@@ -313,168 +309,43 @@
     notifyResize();
   }
 
-  function clearAllScores() {
-    if (!ACCOUNTS.length) { alert('当前没有账号，无需清空数据'); return; }
+  // ===== 清空积分（只清分值，保留勾选） =====
+  function clearScores() {
+    if (!ACCOUNTS.length) { alert('当前没有账号，无需清空积分'); return; }
     let has = false;
     ACCOUNTS.forEach(a => {
       PLATFORMS.forEach(p => {
         if (data[a] && data[a][p] && String(data[a][p]).trim() !== '') has = true;
-        if (daily[a] && daily[a][p]) has = true;
       });
     });
-    if (!has) { alert('当前所有账号数据已经是空的'); return; }
-    if (!confirm('确定要清空所有账号的分值和每日任务记录吗？账号列表将保留。')) return;
+    if (!has) { alert('当前所有积分已经是空的'); return; }
+    if (!confirm('确定要清空所有账号的积分吗？每日任务勾选会保留。')) return;
     ACCOUNTS.forEach(a => {
       if (!data[a]) data[a] = {};
-      if (!daily[a]) daily[a] = {};
-      PLATFORMS.forEach(p => {
-        data[a][p] = '';
-        daily[a][p] = false;
-      });
+      PLATFORMS.forEach(p => { data[a][p] = ''; });
     });
-    dailyDate = todayStr();
     saveData();
     renderAll();
   }
 
-  function exportCSV() {
-    if (!ACCOUNTS.length) { alert('当前没有账号，无法导出'); return; }
-    const header = ['账号'];
-    PLATFORMS.forEach(p => {
-      header.push(`${p}分值`);
-      header.push(`${p}任务`);
-    });
-    const rows = [header.join(',')];
-
-    const colTotals = PLATFORMS.map(() => 0);
-
+  // ===== 清空任务（只清勾选，保留积分） =====
+  function clearTasks() {
+    if (!ACCOUNTS.length) { alert('当前没有账号，无需清空任务'); return; }
+    let has = false;
     ACCOUNTS.forEach(a => {
-      const cells = [a];
-      PLATFORMS.forEach((p, idx) => {
-        const raw = (data[a] && data[a][p] !== undefined) ? data[a][p] : '';
-        const n = parseInt(raw, 10);
-        const val = isNaN(n) ? '' : n;
-        cells.push(val);
-        if (!isNaN(n)) colTotals[idx] += n;
-        cells.push(daily[a] && daily[a][p] ? '1' : '0');
+      PLATFORMS.forEach(p => {
+        if (daily[a] && daily[a][p]) has = true;
       });
-      rows.push(cells.join(','));
     });
-
-    const totalCells = ['平台合计'];
-    PLATFORMS.forEach((p, idx) => {
-      totalCells.push(colTotals[idx]);
-      totalCells.push('');
+    if (!has) { alert('当前所有每日任务勾选已经是空的'); return; }
+    if (!confirm('确定要清空所有账号的每日任务勾选吗？积分会保留。')) return;
+    ACCOUNTS.forEach(a => {
+      if (!daily[a]) daily[a] = {};
+      PLATFORMS.forEach(p => { daily[a][p] = false; });
     });
-    rows.push(totalCells.join(','));
-
-    const csv = '\uFEFF' + rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${MODULE_TITLE}_${todayStr()}.csv`; a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function parseCSVLine(line) {
-    const result = []; let cur = ''; let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (inQuotes) {
-        if (ch === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else inQuotes = false; }
-        else cur += ch;
-      } else {
-        if (ch === '"') inQuotes = true;
-        else if (ch === ',') { result.push(cur); cur = ''; }
-        else cur += ch;
-      }
-    }
-    result.push(cur); return result;
-  }
-
-  function importCSV(file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        let text = e.target.result;
-        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-        const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-        if (lines.length < 2) { alert('CSV 内容为空或格式不正确'); return; }
-        const header = parseCSVLine(lines[0]).map(s => s.trim());
-
-        const scoreCols = {};
-        const taskCols = {};
-
-        PLATFORMS.forEach(pf => {
-          const scoreIdx = header.indexOf(`${pf}分值`);
-          const taskIdx = header.indexOf(`${pf}任务`);
-          if (scoreIdx !== -1) scoreCols[pf] = scoreIdx;
-          if (taskIdx !== -1) taskCols[pf] = taskIdx;
-
-          if (scoreIdx === -1) {
-            const oldIdx = header.indexOf(pf);
-            if (oldIdx !== -1) scoreCols[pf] = oldIdx;
-          }
-        });
-
-        if (Object.keys(scoreCols).length === 0) {
-          alert('CSV 表头中没有找到平台列（q音/酷狗/酷我/波点/波点2 或 q音分值 等）');
-          return;
-        }
-
-        const importedScores = {};
-        const importedDaily = {};
-
-        for (let i = 1; i < lines.length; i++) {
-          const cells = parseCSVLine(lines[i]);
-          const rawName = cells[0] ? cells[0].trim() : '';
-          if (!rawName || rawName === '平台合计') continue;
-          const accName = normalizeName(rawName);
-          if (!importedScores[accName]) importedScores[accName] = {};
-          if (!importedDaily[accName]) importedDaily[accName] = {};
-
-          PLATFORMS.forEach(pf => {
-            const scIdx = scoreCols[pf];
-            let val = '';
-            if (scIdx !== undefined && scIdx < cells.length) {
-              const raw = cells[scIdx].trim();
-              if (raw !== '') { const n = parseInt(raw, 10); val = isNaN(n) ? '' : String(Math.max(0, n)); }
-            }
-            importedScores[accName][pf] = val;
-
-            const tcIdx = taskCols[pf];
-            if (tcIdx !== undefined && tcIdx < cells.length) {
-              const raw = cells[tcIdx].trim();
-              importedDaily[accName][pf] = (raw === '1' || raw === 'true' || raw === '是');
-            } else {
-              importedDaily[accName][pf] = false;
-            }
-          });
-        }
-
-        if (Object.keys(importedScores).length === 0) {
-          alert('没有在 CSV 中解析到有效账号，请检查第一列是否为账号名');
-          return;
-        }
-
-        data = {};
-        daily = {};
-        ACCOUNTS.forEach(a => {
-          data[a] = {};
-          daily[a] = {};
-          PLATFORMS.forEach(p => {
-            data[a][p] = (importedScores[a] && importedScores[a][p] !== undefined) ? importedScores[a][p] : '';
-            daily[a][p] = (importedDaily[a] && importedDaily[a][p]) ? true : false;
-          });
-        });
-        dailyDate = todayStr();
-
-        saveData();
-        renderAll();
-        alert('导入完成（已按当前统一账号列表匹配数据）');
-      } catch(err) { console.error(err); alert('CSV 解析失败：' + err.message); }
-    };
-    reader.readAsText(file, 'UTF-8');
+    dailyDate = todayStr();
+    saveData();
+    renderAll();
   }
 
   window.addEventListener('message', function(e) {
@@ -501,15 +372,8 @@
 
     renderAll();
 
-    document.getElementById('importBtn').addEventListener('click', () => {
-      const fi = document.getElementById('fileInput');
-      fi.value = ''; fi.click();
-    });
-    document.getElementById('fileInput').addEventListener('change', e => {
-      const f = e.target.files[0]; if (f) importCSV(f);
-    });
-    document.getElementById('exportBtn').addEventListener('click', exportCSV);
-    document.getElementById('clearDataBtn').addEventListener('click', clearAllScores);
+    document.getElementById('clearScoresBtn').addEventListener('click', clearScores);
+    document.getElementById('clearTasksBtn').addEventListener('click', clearTasks);
 
     setInterval(() => {
       if (checkDailyReset()) renderAll();

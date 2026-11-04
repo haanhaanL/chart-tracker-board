@@ -6,7 +6,6 @@
 <title>电力</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  /* 电力模块独有样式 */
   .check-cell {
     display: flex;
     flex-direction: column;
@@ -35,18 +34,32 @@
   .check-box:hover { border-color: #ea3690; }
   .check-box.checked { background: #ea3690; border-color: #ea3690; color: #fff; }
 
-  /* 无法使用状态下的勾选框 */
-  .check-box.disabled {
-    background: #f3f3f3;
-    border-color: #e0e0e0;
-    cursor: not-allowed;
-    pointer-events: none;
+  .daily-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid #f0d6e4;
+    background: white;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.15s;
+    font-size: 14px;
     color: transparent;
+    font-weight: bold;
+    user-select: none;
   }
-  .check-box.checked.disabled {
-    background: #d9d9d9;
-    border-color: #d0d0d0;
-    color: #fff;
+  .daily-check:hover { border-color: #f97316; }
+  .daily-check.checked { background: #f97316; border-color: #f97316; color: #fff; }
+
+  .shared-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 38px;
   }
 
   .timer-text {
@@ -63,10 +76,9 @@
   .timer-text.idle { color: #c7c7c7; }
   .timer-text.ready { color: #22c55e; }
 
-  /* 备注输入 */
   input.remark-input {
     width: 100%;
-    max-width: 120px;
+    max-width: 110px;
     height: 26px;
     padding: 0 6px;
     text-align: left;
@@ -85,7 +97,6 @@
   }
   input.remark-input::placeholder { color: #ccc; }
 
-  /* 无法使用勾选框（小方块） */
   .disable-check {
     width: 20px;
     height: 20px;
@@ -105,7 +116,6 @@
   .disable-check:hover { border-color: #f97316; }
   .disable-check.checked { background: #f97316; border-color: #f97316; color: #fff; }
 
-  /* 删除按钮 */
   .del-btn {
     width: 24px; height: 24px; border-radius: 50%;
     border: 1px solid rgba(231,76,60,0.35);
@@ -115,7 +125,6 @@
   }
   .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #e74c3c; }
 
-  /* 无法使用的账号行：整行淡化 */
   tr.row-disabled .account-text {
     color: #bbb;
     text-decoration: line-through;
@@ -124,11 +133,30 @@
     background: #fafafa;
     color: #bbb;
   }
+
+  .check-box.disabled,
+  .daily-check.disabled {
+    background: #f3f3f3;
+    border-color: #e0e0e0;
+    cursor: not-allowed;
+    pointer-events: none;
+    color: transparent;
+  }
+  .check-box.checked.disabled,
+  .daily-check.checked.disabled {
+    background: #d9d9d9;
+    border-color: #d0d0d0;
+    color: #fff;
+  }
+
+  /* 顶部两张卡片 */
+  .stats-row.two {
+    grid-template-columns: repeat(2, 1fr);
+  }
 </style>
 </head>
 <body>
-  <div class="stats-row">
-    <div class="stat-card"><div class="s-label">当前轮次</div><div class="s-value" id="powerRound">0</div></div>
+  <div class="stats-row two">
     <div class="stat-card done"><div class="s-label">已完成账号</div><div class="s-value" id="powerDoneAccounts">0 / 0</div></div>
     <div class="stat-card done"><div class="s-label">下一轮时间</div><div class="s-value" id="powerNextTime" style="font-size:13px;">—</div></div>
   </div>
@@ -142,15 +170,16 @@
 
 <script>
 (function(){
-  const POWER_PLATFORMS = ['安卓', '苹果'];
+  const SHARED = '盲盒';
+  const DAILY_PLATFORMS = ['安卓', '苹果'];
   const POWER_INTERVAL_MS = 4 * 60 * 60 * 1000;
   const POWER_STORAGE_KEY = 'bang_power_state';
 
   let ACCOUNTS = [];
-  let records = {};   // { 账号: { 安卓:{done,ts}, 苹果:{done,ts}, disabled:false, remark:'' } }
+  let records = {};
+  let dailyDate = '';
   let timerInterval = null;
 
-  // ===== 工具 =====
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -170,6 +199,11 @@
   }
   const IDLE_TEXT = '00:00:00';
 
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
   function getNextAvailableTs(ts) {
     if (!ts || ts <= 0) return 0;
     const after4h = ts + POWER_INTERVAL_MS;
@@ -177,7 +211,7 @@
     const nextMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0).getTime();
     return Math.min(after4h, nextMidnight);
   }
-  function getRecordStatus(r) {
+  function getSharedStatus(r) {
     if (!r || !r.done) return { done: false, ready: true, remaining: 0, nextTs: 0 };
     const nextTs = getNextAvailableTs(r.ts);
     const remaining = nextTs - Date.now();
@@ -204,21 +238,36 @@
     }
   }
 
-  // ===== 存储 =====
-  function loadPowerRecords() {
+  function loadPowerState() {
     try {
       const raw = localStorage.getItem(POWER_STORAGE_KEY);
       if (raw) {
         const obj = JSON.parse(raw);
         if (obj && typeof obj === 'object' && obj.records && typeof obj.records === 'object') {
-          return obj.records;
+          return {
+            records: obj.records,
+            dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : ''
+          };
         }
       }
     } catch(e) {}
-    return {};
+    return { records: {}, dailyDate: '' };
   }
   function savePowerRecords() {
-    localStorage.setItem(POWER_STORAGE_KEY, JSON.stringify({ records }));
+    localStorage.setItem(POWER_STORAGE_KEY, JSON.stringify({ records, dailyDate }));
+  }
+
+  function checkDailyReset() {
+    const today = todayStr();
+    if (dailyDate === today) return false;
+
+    ACCOUNTS.forEach(a => {
+      if (!records[a]) records[a] = {};
+      DAILY_PLATFORMS.forEach(p => { records[a][p] = false; });
+    });
+    dailyDate = today;
+    savePowerRecords();
+    return true;
   }
 
   function syncRecordsWithAccounts() {
@@ -228,11 +277,15 @@
       if (!normalized[nk]) normalized[nk] = records[k];
     });
     records = normalized;
+
     ACCOUNTS.forEach(a => {
       if (!records[a]) records[a] = {};
-      POWER_PLATFORMS.forEach(p => {
-        if (!records[a][p]) records[a][p] = { done: false, ts: 0 };
+      DAILY_PLATFORMS.forEach(p => {
+        if (typeof records[a][p] !== 'boolean') records[a][p] = false;
       });
+      if (!records[a][SHARED] || typeof records[a][SHARED] !== 'object') {
+        records[a][SHARED] = { done: false, ts: 0 };
+      }
       if (typeof records[a].disabled !== 'boolean') records[a].disabled = false;
       if (typeof records[a].remark !== 'string') records[a].remark = '';
     });
@@ -240,44 +293,46 @@
     ACCOUNTS = [...new Set(ACCOUNTS)];
   }
 
-  function timerHtml(acc, pf, r, disabled) {
-    const safeAcc = escapeHtml(acc);
-    const safePf = escapeHtml(pf);
-    if (disabled) {
-      return `<span class="timer-text idle" data-timer="${safeAcc}|${safePf}">—</span>`;
-    }
-    const st = getRecordStatus(r);
-    if (!st.done) {
-      return `<span class="timer-text idle" data-timer="${safeAcc}|${safePf}">${IDLE_TEXT}</span>`;
-    }
-    if (st.ready) {
-      return `<span class="timer-text ready" data-timer="${safeAcc}|${safePf}">可做</span>`;
-    }
-    return `<span class="timer-text" data-timer="${safeAcc}|${safePf}">${formatCountdown(st.remaining)}</span>`;
+  function dailyCheckHtml(acc, pf, checked, disabled) {
+    const cls = 'daily-check' + (checked ? ' checked' : '') + (disabled ? ' disabled' : '');
+    return `<div class="${cls}" data-acc="${escapeHtml(acc)}" data-pf="${escapeHtml(pf)}" data-type="daily" title="${disabled ? '该账号电力不可用' : (checked ? '点击取消' : '点击标记完成')}">${checked ? '✓' : ''}</div>`;
   }
 
-  // ===== 渲染 =====
+  function sharedHtml(acc, r, disabled) {
+    const st = getSharedStatus(r);
+    const checked = st.done;
+    const cls = 'check-box' + (checked ? ' checked' : '') + (disabled ? ' disabled' : '');
+    let timer = '';
+    if (disabled) {
+      timer = `<span class="timer-text idle" data-timer="${escapeHtml(acc)}|${SHARED}">—</span>`;
+    } else if (!st.done) {
+      timer = `<span class="timer-text idle" data-timer="${escapeHtml(acc)}|${SHARED}">${IDLE_TEXT}</span>`;
+    } else if (st.ready) {
+      timer = `<span class="timer-text ready" data-timer="${escapeHtml(acc)}|${SHARED}">可做</span>`;
+    } else {
+      timer = `<span class="timer-text" data-timer="${escapeHtml(acc)}|${SHARED}">${formatCountdown(st.remaining)}</span>`;
+    }
+    return `<div class="shared-cell">
+      <div class="${cls}" data-acc="${escapeHtml(acc)}" data-pf="${SHARED}" data-type="shared" title="${disabled ? '该账号电力不可用' : (checked ? '点击取消勾选' : '点击标记为已完成')}">${checked ? '✓' : ''}</div>
+      ${timer}
+    </div>`;
+  }
+
   function renderPower() {
     const box = document.getElementById('powerTableBox');
     let rows = '';
     if (ACCOUNTS.length === 0) {
-      rows = `<tr class="empty-row"><td colspan="${POWER_PLATFORMS.length + 4}">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
+      rows = `<tr class="empty-row"><td colspan="7">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
     } else {
-      rows = ACCOUNTS.map((a) => {
+      rows = ACCOUNTS.map(a => {
         const rec = records[a] || {};
         const disabled = !!rec.disabled;
         const remark = rec.remark || '';
         return `<tr data-acc="${escapeHtml(a)}" class="${disabled ? 'row-disabled' : ''}">
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${escapeHtml(a)}</span></td>
-          ${POWER_PLATFORMS.map(p => {
-            const r = rec[p] || { done: false, ts: 0 };
-            const checkedCls = r.done ? 'checked' : '';
-            const disabledCls = disabled ? 'disabled' : '';
-            return `<td><div class="check-cell">
-              <div class="check-box ${checkedCls} ${disabledCls}" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" title="${disabled ? '该账号电力不可用' : (r.done ? '点击取消勾选' : '点击标记为已完成')}">${r.done ? '✓' : ''}</div>
-              ${timerHtml(a, p, r, disabled)}
-            </div></td>`;
-          }).join('')}
+          <td>${dailyCheckHtml(a, '安卓', !!rec['安卓'], disabled)}</td>
+          <td>${dailyCheckHtml(a, '苹果', !!rec['苹果'], disabled)}</td>
+          <td>${sharedHtml(a, rec[SHARED] || { done: false, ts: 0 }, disabled)}</td>
           <td><input class="remark-input" type="text" placeholder="备注" data-acc="${escapeHtml(a)}" value="${escapeHtml(remark)}"></td>
           <td><div class="disable-check ${disabled ? 'checked' : ''}" data-acc="${escapeHtml(a)}" title="${disabled ? '取消无法使用' : '标记为无法使用'}">${disabled ? '✓' : ''}</div></td>
           <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
@@ -288,15 +343,18 @@
     box.innerHTML = `<table>
       <colgroup>
         <col style="width:84px">
-        <col style="width:15%">
-        <col style="width:15%">
+        <col style="width:12%">
+        <col style="width:12%">
+        <col style="width:18%">
         <col style="width:22%">
         <col style="width:12%">
         <col style="width:34px">
       </colgroup>
       <thead><tr>
         <th style="text-align:left;padding-left:6px;">账号</th>
-        ${POWER_PLATFORMS.map(p => `<th>${p}</th>`).join('')}
+        <th>安卓</th>
+        <th>苹果</th>
+        <th>盲盒</th>
         <th>备注</th>
         <th>无法使用</th>
         <th>操作</th>
@@ -304,17 +362,25 @@
       <tbody>${rows}</tbody>
       <tfoot><tr>
         <td class="account-cell" style="color:#ea3690;">已完成</td>
-        ${POWER_PLATFORMS.map((_, i) => `<td><div class="col-total" id="pct-${i}">0 / 0</div></td>`).join('')}
+        <td><div class="col-total" id="pct-android">0 / 0</div></td>
+        <td><div class="col-total" id="pct-ios">0 / 0</div></td>
+        <td><div class="col-total" id="pct-shared">0 / 0</div></td>
         <td></td><td></td><td></td>
       </tr></tfoot>
     </table>`;
 
-    // 勾选框点击（disabled 状态下 .check-box 有 pointer-events:none，不会触发）
-    box.querySelectorAll('.check-box:not(.disabled)').forEach(el => {
-      el.addEventListener('click', function(){ togglePowerCheck(this.dataset.acc, this.dataset.pf); });
+    box.querySelectorAll('.daily-check:not(.disabled)').forEach(el => {
+      el.addEventListener('click', function(){
+        toggleDaily(this.dataset.acc, this.dataset.pf);
+      });
     });
 
-    // 备注输入
+    box.querySelectorAll('.check-box:not(.disabled)').forEach(el => {
+      el.addEventListener('click', function(){
+        toggleShared(this.dataset.acc);
+      });
+    });
+
     box.querySelectorAll('input.remark-input').forEach(inp => {
       inp.addEventListener('change', function(){
         const acc = this.dataset.acc;
@@ -330,22 +396,20 @@
       });
     });
 
-    // 无法使用勾选框
     box.querySelectorAll('.disable-check').forEach(el => {
       el.addEventListener('click', function(){
         const acc = this.dataset.acc;
         if (!records[acc]) return;
         records[acc].disabled = !records[acc].disabled;
-        // 标记为无法使用时，清掉两个平台的勾选
         if (records[acc].disabled) {
-          POWER_PLATFORMS.forEach(p => { records[acc][p] = { done: false, ts: 0 }; });
+          DAILY_PLATFORMS.forEach(p => { records[acc][p] = false; });
+          records[acc][SHARED] = { done: false, ts: 0 };
         }
         savePowerRecords();
         renderPower();
       });
     });
 
-    // 删除按钮
     box.querySelectorAll('.del-btn').forEach(btn => {
       btn.addEventListener('click', function(){
         requestDeleteAccount(this.dataset.acc);
@@ -356,53 +420,52 @@
     notifyResize();
   }
 
-  function togglePowerCheck(acc, pf) {
+  function toggleDaily(acc, pf) {
     const rec = records[acc];
     if (!rec || rec.disabled) return;
-    const r = rec[pf] || { done: false, ts: 0 };
-    if (r.done) rec[pf] = { done: false, ts: 0 };
-    else rec[pf] = { done: true, ts: Date.now() };
+    rec[pf] = !rec[pf];
+    if (dailyDate !== todayStr()) dailyDate = todayStr();
     savePowerRecords();
     renderPower();
   }
 
-  // ===== 统计（排除 disabled 账号） =====
+  function toggleShared(acc) {
+    const rec = records[acc];
+    if (!rec || rec.disabled) return;
+    const r = rec[SHARED] || { done: false, ts: 0 };
+    if (r.done) rec[SHARED] = { done: false, ts: 0 };
+    else rec[SHARED] = { done: true, ts: Date.now() };
+    savePowerRecords();
+    renderPower();
+  }
+
   function updatePowerStats() {
     const activeAccounts = ACCOUNTS.filter(a => records[a] && !records[a].disabled);
 
-    let doneAcc = 0;
+    // 已完成账号：安卓 + 苹果 的勾选总数 / (有效账号数 × 2)
+    let dailyDone = 0;
     activeAccounts.forEach(a => {
       const rec = records[a] || {};
-      if (POWER_PLATFORMS.every(p => rec[p] && rec[p].done)) doneAcc++;
+      if (rec['安卓']) dailyDone++;
+      if (rec['苹果']) dailyDone++;
     });
+    const dailyTotal = activeAccounts.length * 2;
 
+    // 下一轮时间：只看盲盒 CD 中未到期的
     let nextTs = 0, hasActive = false;
     activeAccounts.forEach(a => {
       const rec = records[a] || {};
-      POWER_PLATFORMS.forEach(p => {
-        const r = rec[p];
-        if (r && r.done) {
-          const st = getRecordStatus(r);
-          if (!st.ready) {
-            if (!hasActive || st.nextTs < nextTs) { nextTs = st.nextTs; hasActive = true; }
-          }
+      const r = rec[SHARED];
+      if (r && r.done) {
+        const st = getSharedStatus(r);
+        if (!st.ready) {
+          if (!hasActive || st.nextTs < nextTs) { nextTs = st.nextTs; hasActive = true; }
         }
-      });
+      }
     });
 
-    const roundEl = document.getElementById('powerRound');
-    if (roundEl) {
-      const total = activeAccounts.length * POWER_PLATFORMS.length;
-      let done = 0;
-      activeAccounts.forEach(a => {
-        const rec = records[a] || {};
-        POWER_PLATFORMS.forEach(p => { if (rec[p] && rec[p].done) done++; });
-      });
-      roundEl.textContent = `${done} / ${total}`;
-    }
-
     const da = document.getElementById('powerDoneAccounts');
-    if (da) da.textContent = `${doneAcc} / ${activeAccounts.length}`;
+    if (da) da.textContent = `${dailyDone} / ${dailyTotal}`;
 
     const nextEl = document.getElementById('powerNextTime');
     if (nextEl) {
@@ -410,24 +473,30 @@
       else { nextEl.textContent = activeAccounts.length > 0 ? '全部可做' : '—'; nextEl.style.color = '#22c55e'; }
     }
 
-    POWER_PLATFORMS.forEach((pf, i) => {
-      const el = document.getElementById(`pct-${i}`);
-      if (el) {
-        let done = 0;
-        activeAccounts.forEach(a => { const rec = records[a] || {}; if (rec[pf] && rec[pf].done) done++; });
-        el.textContent = `${done} / ${activeAccounts.length}`;
-      }
-    });
+    const androidDone = activeAccounts.filter(a => records[a] && records[a]['安卓']).length;
+    const iosDone = activeAccounts.filter(a => records[a] && records[a]['苹果']).length;
+    const sharedDone = activeAccounts.filter(a => records[a] && records[a][SHARED] && records[a][SHARED].done).length;
+
+    const ea = document.getElementById('pct-android');
+    if (ea) ea.textContent = `${androidDone} / ${activeAccounts.length}`;
+    const ei = document.getElementById('pct-ios');
+    if (ei) ei.textContent = `${iosDone} / ${activeAccounts.length}`;
+    const es = document.getElementById('pct-shared');
+    if (es) es.textContent = `${sharedDone} / ${activeAccounts.length}`;
 
     notifyResize();
   }
 
-  // ===== 倒计时 =====
   function startTimer() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
+      if (checkDailyReset()) {
+        renderPower();
+        return;
+      }
       document.querySelectorAll('[data-timer]').forEach(el => {
-        const [acc, pf] = el.dataset.timer.split('|');
+        const parts = el.dataset.timer.split('|');
+        const acc = parts[0];
         const rec = records[acc];
         if (!rec) return;
         if (rec.disabled) {
@@ -435,8 +504,8 @@
           el.className = 'timer-text idle';
           return;
         }
-        const r = rec[pf];
-        const st = getRecordStatus(r);
+        const r = rec[SHARED];
+        const st = getSharedStatus(r);
         if (!st.done) {
           el.textContent = IDLE_TEXT;
           el.className = 'timer-text idle';
@@ -452,51 +521,75 @@
     }, 1000);
   }
 
-  // ===== 清空 / 重置 =====
   function clearPowerData() {
     if (!ACCOUNTS.length) { alert('当前没有账号，无需清空数据'); return; }
     let has = false;
-    ACCOUNTS.forEach(a => POWER_PLATFORMS.forEach(p => { const r = records[a] && records[a][p]; if (r && (r.done || r.ts)) has = true; }));
+    ACCOUNTS.forEach(a => {
+      DAILY_PLATFORMS.forEach(p => { if (records[a] && records[a][p]) has = true; });
+      const r = records[a] && records[a][SHARED];
+      if (r && (r.done || r.ts)) has = true;
+    });
     if (!has) { alert('当前所有电力记录已经是空的'); return; }
     if (!confirm('确定要清空电力模块的所有勾选记录吗？账号列表、备注、无法使用标记会保留。')) return;
     ACCOUNTS.forEach(a => {
       if (!records[a]) records[a] = {};
-      POWER_PLATFORMS.forEach(p => records[a][p] = { done: false, ts: 0 });
+      DAILY_PLATFORMS.forEach(p => { records[a][p] = false; });
+      records[a][SHARED] = { done: false, ts: 0 };
     });
+    dailyDate = todayStr();
     savePowerRecords();
     renderPower();
   }
+
   function resetPowerRound() {
     if (!ACCOUNTS.length) { alert('当前没有账号'); return; }
-    if (!confirm('确定要重置所有账号的电力轮次吗？所有勾选记录将被清除，下一次可立即开始。')) return;
+    if (!confirm('确定要重置所有账号的盲盒电力轮次吗？盲盒勾选和计时会被清除，安卓/苹果每日任务不受影响。')) return;
     ACCOUNTS.forEach(a => {
       if (!records[a]) records[a] = {};
-      POWER_PLATFORMS.forEach(p => records[a][p] = { done: false, ts: 0 });
+      records[a][SHARED] = { done: false, ts: 0 };
     });
     savePowerRecords();
     renderPower();
   }
 
-  // ===== 接收统一账号 =====
   window.addEventListener('message', function(e) {
     if (!e.data || e.data.type !== 'accounts-changed') return;
     const incoming = Array.isArray(e.data.accounts) ? e.data.accounts : [];
     ACCOUNTS = incoming.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
-    records = loadPowerRecords();
+    const loaded = loadPowerState();
+    records = loaded.records;
+    dailyDate = loaded.dailyDate;
     syncRecordsWithAccounts();
-    savePowerRecords();
+    if (checkDailyReset()) {
+      savePowerRecords();
+    }
     renderPower();
   });
 
-  // ===== 初始化 =====
   function init() {
-    records = loadPowerRecords();
+    const loaded = loadPowerState();
+    records = loaded.records;
+    dailyDate = loaded.dailyDate;
+
+    syncRecordsWithAccounts();
+    if (checkDailyReset()) {
+      savePowerRecords();
+    }
+
     renderPower();
 
     document.getElementById('powerClearDataBtn').addEventListener('click', clearPowerData);
     document.getElementById('powerResetRoundBtn').addEventListener('click', resetPowerRound);
 
     startTimer();
+
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        if (checkDailyReset()) {
+          renderPower();
+        }
+      }
+    });
   }
   init();
 })();
