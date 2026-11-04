@@ -3,20 +3,228 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>金币</title>
+<title>刷播</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  .placeholder {
-    flex: 1;
-    display: flex;
+  .stats-row.single {
+    grid-template-columns: 1fr;
+  }
+
+  /* 刷播勾选框 */
+  .play-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid #f0d6e4;
+    background: white;
+    cursor: pointer;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #bbb;
-    font-size: 12px;
+    transition: 0.15s;
+    font-size: 14px;
+    color: transparent;
+    font-weight: bold;
+    user-select: none;
   }
+  .play-check:hover { border-color: #f97316; }
+  .play-check.checked { background: #f97316; border-color: #f97316; color: #fff; }
+
+  .del-btn {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1px solid rgba(231,76,60,0.35);
+    background: white; color: #e74c3c; font-size: 14px; line-height: 1;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    transition: 0.15s; font-family: inherit; padding: 0;
+  }
+  .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #e74c3c; }
 </style>
 </head>
 <body>
-  <div class="placeholder">内容待补充</div>
+  <div class="stats-row single">
+    <div class="stat-card"><div class="s-label">总完成数</div><div class="s-value" id="totalDone">0 / 0</div></div>
+  </div>
+
+  <div class="toolbar">
+    <button id="clearDataBtn" class="danger">清空数据</button>
+  </div>
+
+  <div class="table-box" id="tableBox"></div>
+
+<script>
+(function(){
+  const PLATFORMS = ['q音', '酷狗', '酷我'];
+  const DATA_STORAGE_KEY = 'bang_play_state';
+
+  let ACCOUNTS = [];
+  // data[账号][平台] = true/false
+  let data = {};
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function normalizeName(name) { return String(name).trim().replace(/\s+/g, ' '); }
+
+  function notifyResize() {
+    if (window.parent && window.parent !== window) {
+      try {
+        window.parent.postMessage({
+          type: 'resize',
+          module: 'play',
+          height: document.body.scrollHeight
+        }, '*');
+      } catch(e) {}
+    }
+  }
+
+  function requestDeleteAccount(name) {
+    if (window.parent && window.parent !== window) {
+      try {
+        window.parent.postMessage({ type: 'delete-account', account: name }, '*');
+      } catch(e) {}
+    }
+  }
+
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(DATA_STORAGE_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object') return obj;
+      }
+    } catch(e) {}
+    return {};
+  }
+  function saveData() {
+    localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function syncDataWithAccounts() {
+    const normalized = {};
+    Object.keys(data).forEach(k => {
+      const nk = normalizeName(k);
+      if (!normalized[nk]) normalized[nk] = data[k];
+    });
+    data = normalized;
+
+    ACCOUNTS.forEach(a => {
+      if (!data[a]) data[a] = {};
+      PLATFORMS.forEach(p => {
+        if (typeof data[a][p] !== 'boolean') data[a][p] = false;
+      });
+    });
+    Object.keys(data).forEach(a => { if (!ACCOUNTS.includes(a)) delete data[a]; });
+    ACCOUNTS = [...new Set(ACCOUNTS)];
+  }
+
+  function renderAll() {
+    const box = document.getElementById('tableBox');
+    let rows = '';
+    if (ACCOUNTS.length === 0) {
+      rows = `<tr class="empty-row"><td colspan="${PLATFORMS.length + 2}">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
+    } else {
+      rows = ACCOUNTS.map(a => {
+        const rec = data[a] || {};
+        return `<tr data-acc="${escapeHtml(a)}">
+          <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${escapeHtml(a)}</span></td>
+          ${PLATFORMS.map(p => {
+            const checked = !!rec[p];
+            return `<td>
+              <div class="play-check ${checked ? 'checked' : ''}" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" title="${checked ? '点击取消' : '点击标记完成'}">${checked ? '✓' : ''}</div>
+            </td>`;
+          }).join('')}
+          <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    box.innerHTML = `<table>
+      <colgroup>
+        <col style="width:100px">
+        <col style="width:20%">
+        <col style="width:20%">
+        <col style="width:20%">
+        <col style="width:40px">
+      </colgroup>
+      <thead><tr>
+        <th style="text-align:left;padding-left:6px;">账号</th>
+        ${PLATFORMS.map(p => `<th>${p}</th>`).join('')}
+        <th>操作</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    box.querySelectorAll('.play-check').forEach(el => {
+      el.addEventListener('click', function(){
+        toggleCheck(this.dataset.acc, this.dataset.pf);
+      });
+    });
+
+    box.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', function(){
+        requestDeleteAccount(this.dataset.acc);
+      });
+    });
+
+    updateStats();
+    notifyResize();
+  }
+
+  function toggleCheck(acc, pf) {
+    if (!data[acc]) data[acc] = {};
+    data[acc][pf] = !data[acc][pf];
+    saveData();
+    renderAll();
+  }
+
+  function updateStats() {
+    let done = 0;
+    ACCOUNTS.forEach(a => {
+      const rec = data[a] || {};
+      PLATFORMS.forEach(p => { if (rec[p]) done++; });
+    });
+    const total = ACCOUNTS.length * PLATFORMS.length;
+
+    const el = document.getElementById('totalDone');
+    if (el) el.textContent = `${done} / ${total}`;
+
+    notifyResize();
+  }
+
+  function clearData() {
+    if (!ACCOUNTS.length) { alert('当前没有账号，无需清空数据'); return; }
+    let has = false;
+    ACCOUNTS.forEach(a => {
+      PLATFORMS.forEach(p => { if (data[a] && data[a][p]) has = true; });
+    });
+    if (!has) { alert('当前所有刷播记录已经是空的'); return; }
+    if (!confirm('确定要清空所有账号的刷播记录吗？账号列表将保留。')) return;
+    ACCOUNTS.forEach(a => {
+      if (!data[a]) data[a] = {};
+      PLATFORMS.forEach(p => { data[a][p] = false; });
+    });
+    saveData();
+    renderAll();
+  }
+
+  window.addEventListener('message', function(e) {
+    if (!e.data || e.data.type !== 'accounts-changed') return;
+    const incoming = Array.isArray(e.data.accounts) ? e.data.accounts : [];
+    ACCOUNTS = incoming.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
+    data = loadData();
+    syncDataWithAccounts();
+    saveData();
+    renderAll();
+  });
+
+  function init() {
+    data = loadData();
+    renderAll();
+
+    document.getElementById('clearDataBtn').addEventListener('click', clearData);
+  }
+  init();
+})();
+</script>
 </body>
 </html>
