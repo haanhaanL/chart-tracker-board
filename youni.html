@@ -4,110 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>由你积分</title>
+<link rel="stylesheet" href="common.css">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    background: #fff;
-    padding: 8px;
-    color: #333;
-    overflow-x: hidden;
-  }
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-  .stat-card {
-    background: #fdf7fa;
-    border-radius: 8px;
-    padding: 6px 8px;
-    border: 1px solid #f3e6ee;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-  .stat-card .s-label { font-size: 10px; color: #999; font-weight: bold; white-space: nowrap; }
-  .stat-card .s-value { font-size: 17px; font-weight: bold; color: #ea3690; line-height: 1.1; white-space: nowrap; }
-  .stat-card.done .s-value { color: #f97316; }
-
-  .toolbar {
-    display: flex; gap: 6px; margin-bottom: 8px;
-    justify-content: center; flex-wrap: nowrap; overflow-x: auto;
-    -webkit-overflow-scrolling: touch; padding-bottom: 2px;
-  }
-  .toolbar button {
-    flex: 1; min-width: 80px; padding: 6px 8px; border-radius: 16px;
-    border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
-    font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
-    outline: none; font-family: inherit; white-space: nowrap;
-  }
-  .toolbar button:hover { background: rgba(234,54,144,0.06); }
-  .toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
-  .toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
-
-  .table-box {
-    background: white; border-radius: 8px; padding: 4px;
-    border: 1px solid #f3e6ee; overflow-x: auto;
-    -webkit-overflow-scrolling: touch; min-height: 100px;
-  }
-  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; min-width: 560px; table-layout: fixed; }
-  thead th {
-    background: #ea3690; color: #fff; font-weight: bold; padding: 6px 4px;
-    text-align: center; font-size: 11px; white-space: nowrap; position: sticky; top: 0; z-index: 2;
-    border: 1px solid rgba(255,255,255,0.3);
-  }
-  thead th:first-child { border-top-left-radius: 6px; }
-  thead th:last-child { border-top-right-radius: 6px; }
-  tbody td { padding: 2px 4px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap; }
-  tbody tr:nth-child(even) { background: #ea36900a; }
-  tbody tr:hover { background: rgba(234,54,144,0.05); }
-
-  .account-cell { text-align: left !important; font-weight: bold; color: #555; padding-left: 6px !important; white-space: nowrap; width: 100px; overflow: hidden; text-overflow: ellipsis; }
-  .account-text { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; color: #555; font-size: 11px; }
-  .cell-inner { display: flex; align-items: center; justify-content: center; width: 100%; }
-
-  input.score {
-    width: 100%; max-width: 76px; height: 26px; padding: 0 4px; text-align: center;
-    line-height: 24px; background: white; border: 1px solid #f0d6e4; border-radius: 6px;
-    color: #333; font-size: 11px; font-weight: bold; outline: none; transition: 0.15s; font-family: inherit;
-    -moz-appearance: textfield; appearance: textfield;
-  }
-  input.score::-webkit-outer-spin-button, input.score::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  input.score:focus { border-color: #ea3690; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
-  input.score::placeholder { color: #ccc; font-weight: normal; text-align: center; }
-
+  table { min-width: 600px; }
+  /* 删除按钮 */
   .del-btn {
-    width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(231,76,60,0.35);
-    background: white; color: #e74c3c; font-size: 14px; line-height: 1; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;
-    font-family: inherit; padding: 0;
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1px solid rgba(231,76,60,0.35);
+    background: white; color: #e74c3c; font-size: 14px; line-height: 1;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    transition: 0.15s; font-family: inherit; padding: 0;
   }
   .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #e74c3c; }
-
-  .add-row td { border-bottom: none; padding-top: 6px; padding-bottom: 6px; }
-  .add-row input.new-account {
-    width: 100%; height: 26px; padding: 0 6px; border: 1px dashed #f0d6e4;
-    border-radius: 6px; background: #fdf7fa; color: #555; font-size: 11px;
-    font-family: inherit; outline: none; transition: 0.15s;
-  }
-  .add-row input.new-account:focus { border-color: #ea3690; border-style: solid; background: #fff; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
-  .add-row input.new-account::placeholder { color: #bbb; }
-
-  tfoot td { background: #fdf7fa; border-top: 1px solid #f0d6e4; padding: 6px 4px; font-weight: bold; }
-  .col-total { color: #7c3aed; font-size: 11px; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 24px; }
-
-  .empty-row td { padding: 20px 8px !important; text-align: center; color: #bbb; font-size: 12px; line-height: 1.8; white-space: normal; }
-
-  #fileInput { display: none; }
-
-  @media (max-width: 900px) {
-    .stats-row { gap: 5px; }
-    .stat-card .s-value { font-size: 15px; }
-    .toolbar button { min-width: 64px; font-size: 11px; padding: 6px 4px; }
-  }
 </style>
 </head>
 <body>
@@ -120,7 +28,6 @@
   <div class="toolbar">
     <button id="importBtn">读取 CSV</button>
     <button id="exportBtn">导出 CSV</button>
-    <button id="clearAccountsBtn" class="danger">清空账号</button>
     <button id="clearDataBtn" class="danger">清空数据</button>
   </div>
 
@@ -132,14 +39,11 @@
   const PLATFORMS = ['q音', '酷狗', '酷我', '波点', '波点2'];
   const DONE_THRESHOLD = 1;
   const MODULE_TITLE = '由你积分';
-  const STORAGE_KEY = 'bang_youni_accounts';
   const DATA_STORAGE_KEY = 'bang_youni_scores';
 
-  // 初始不设默认账号
   let ACCOUNTS = [];
   let data = {};
 
-  // ===== 工具 =====
   function todayStr() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -148,39 +52,27 @@
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   function normalizeName(name) { return String(name).trim().replace(/\s+/g, ' '); }
-  function parseNames(input) {
-    if (!input || typeof input !== 'string') return [];
-    const parts = input.split(/[,，\s]+/);
-    const seen = new Set();
-    const result = [];
-    parts.forEach(p => {
-      const name = normalizeName(p);
-      if (name && !seen.has(name)) { seen.add(name); result.push(name); }
-    });
-    return result;
-  }
 
-  // 通知父页面高度变化
   function notifyResize() {
     if (window.parent && window.parent !== window) {
       try {
-        window.parent.postMessage({ type: 'resize', module: 'youni', height: document.body.scrollHeight }, '*');
+        window.parent.postMessage({
+          type: 'resize',
+          module: 'youni',
+          height: document.body.scrollHeight
+        }, '*');
       } catch(e) {}
     }
   }
 
-  // ===== 存储 =====
-  function loadAccounts() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) return arr.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
-      }
-    } catch(e) {}
-    return [];   // 无缓存 → 空账号列表
+  function requestDeleteAccount(name) {
+    if (window.parent && window.parent !== window) {
+      try {
+        window.parent.postMessage({ type: 'delete-account', account: name }, '*');
+      } catch(e) {}
+    }
   }
-  function saveAccounts() { localStorage.setItem(STORAGE_KEY, JSON.stringify(ACCOUNTS)); }
+
   function loadData() {
     try {
       const raw = localStorage.getItem(DATA_STORAGE_KEY);
@@ -190,9 +82,7 @@
   }
   function saveData() { localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data)); }
 
-  function initState() {
-    ACCOUNTS = loadAccounts();
-    data = loadData();
+  function syncDataWithAccounts() {
     const normalizedData = {};
     Object.keys(data).forEach(k => {
       const nk = normalizeName(k);
@@ -207,94 +97,51 @@
     ACCOUNTS = [...new Set(ACCOUNTS)];
   }
 
-  // ===== 渲染 =====
   function renderAll() {
     const box = document.getElementById('tableBox');
     let rows = '';
     if (ACCOUNTS.length === 0) {
-      rows = `<tr class="empty-row"><td colspan="${PLATFORMS.length + 2}">当前无账号，请在下方输入框手动添加，或点击上方「读取 CSV」导入</td></tr>`;
+      rows = `<tr class="empty-row"><td colspan="${PLATFORMS.length + 2}">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
     } else {
-      rows = ACCOUNTS.map((a, idx) => `
+      rows = ACCOUNTS.map((a) => `
         <tr data-acc="${escapeHtml(a)}">
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${escapeHtml(a)}</span></td>
           ${PLATFORMS.map(p => {
             const val = (data[a] && data[a][p]) ? data[a][p] : '';
             return `<td><div class="cell-inner"><input class="score" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" value="${escapeHtml(val)}"></div></td>`;
           }).join('')}
-          <td><button class="del-btn" data-idx="${idx}" title="删除该账号整行">×</button></td>
+          <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
         </tr>
       `).join('');
     }
 
     box.innerHTML = `<table>
       <colgroup>
-        <col style="width:100px"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:40px">
+        <col style="width:100px">
+        <col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%">
+        <col style="width:40px">
       </colgroup>
       <thead><tr><th style="text-align:left;padding-left:6px;">账号</th>${PLATFORMS.map(p => `<th>${p}</th>`).join('')}<th>操作</th></tr></thead>
-      <tbody>
-        ${rows}
-        <tr class="add-row"><td colspan="${PLATFORMS.length + 2}"><input class="new-account" type="text" placeholder="输入账号名，逗号或空格分隔可一次新增多个，按回车确认"></td></tr>
-      </tbody>
+      <tbody>${rows}</tbody>
       <tfoot><tr><td class="account-cell" style="color:#ea3690;">平台合计</td>${PLATFORMS.map((_, i) => `<td><div class="col-total" id="ct-${i}">0</div></td>`).join('')}<td></td></tr></tfoot>
     </table>`;
 
-    // 分值输入
     box.querySelectorAll('input.score').forEach(inp => {
       inp.addEventListener('input', function(){
         const a = this.dataset.acc, p = this.dataset.pf;
         if (!data[a]) data[a] = {};
         data[a][p] = this.value;
-        saveData(); updateStats(); notifyResize();
+        saveData();
+        updateStats();
+        notifyResize();
       });
     });
-    // 删除
+
     box.querySelectorAll('.del-btn').forEach(btn => {
       btn.addEventListener('click', function(){
-        deleteAccount(parseInt(this.dataset.idx, 10));
+        requestDeleteAccount(this.dataset.acc);
       });
     });
-
-    // 新增（回车 + 失焦，批量）
-    const newInput = box.querySelector('input.new-account');
-    if (newInput) {
-      let adding = false;
-
-      function tryAdd(inputEl) {
-        if (adding) return;
-        const names = parseNames(inputEl.value);
-        if (names.length === 0) { inputEl.value = ''; return; }
-        adding = true;
-        const existing = new Set(ACCOUNTS.map(normalizeName));
-        const added = [], skipped = [];
-        names.forEach(name => {
-          if (existing.has(name)) skipped.push(name);
-          else {
-            existing.add(name); ACCOUNTS.push(name);
-            if (!data[name]) data[name] = {};
-            PLATFORMS.forEach(p => data[name][p] = '');
-            added.push(name);
-          }
-        });
-        if (added.length) { saveAccounts(); saveData(); }
-        inputEl.value = '';
-        renderAll();
-        adding = false;
-        if (skipped.length) alert(`以下账号已存在，已跳过：\n${skipped.join('、')}`);
-      }
-
-      newInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          tryAdd(this);
-        }
-      });
-      newInput.addEventListener('blur', function() {
-        const inputEl = this;
-        setTimeout(() => {
-          if (inputEl.value.trim()) tryAdd(inputEl);
-        }, 100);
-      });
-    }
 
     updateStats();
     notifyResize();
@@ -322,21 +169,10 @@
     const t = document.getElementById('totalScore'); if (t) t.textContent = grand.toLocaleString();
     const da = document.getElementById('doneAccounts'); if (da) da.textContent = `${doneAcc} / ${ACCOUNTS.length}`;
     const dp = document.getElementById('donePlatforms'); if (dp) dp.textContent = `${donePf} / ${PLATFORMS.length}`;
+
+    notifyResize();
   }
 
-  // ===== 账号操作 =====
-  function deleteAccount(idx) {
-    if (idx < 0 || idx >= ACCOUNTS.length) return;
-    const name = ACCOUNTS[idx];
-    if (!confirm(`确定删除账号「${name}」吗？该账号的所有分值数据也会被清除。`)) return;
-    ACCOUNTS.splice(idx, 1); delete data[name];
-    saveAccounts(); saveData(); renderAll();
-  }
-  function clearAllAccounts() {
-    if (!ACCOUNTS.length) { alert('当前已经没有账号了'); return; }
-    if (!confirm('确定要清空所有账号吗？所有账号及其分值数据都将被删除，此操作不可撤销。')) return;
-    ACCOUNTS = []; data = {}; saveAccounts(); saveData(); renderAll();
-  }
   function clearAllScores() {
     if (!ACCOUNTS.length) { alert('当前没有账号，无需清空数据'); return; }
     let has = false;
@@ -344,10 +180,10 @@
     if (!has) { alert('当前所有账号数据已经是空的'); return; }
     if (!confirm('确定要清空所有账号的分值数据吗？账号列表将保留，但所有平台的分数会被重置为空。')) return;
     ACCOUNTS.forEach(a => { if (!data[a]) data[a] = {}; PLATFORMS.forEach(p => data[a][p] = ''); });
-    saveData(); renderAll();
+    saveData();
+    renderAll();
   }
 
-  // ===== CSV 导出 =====
   function exportCSV() {
     if (!ACCOUNTS.length) { alert('当前没有账号，无法导出'); return; }
     const rows = [['账号', ...PLATFORMS].join(',')];
@@ -372,7 +208,6 @@
     URL.revokeObjectURL(url);
   }
 
-  // ===== CSV 导入 =====
   function parseCSVLine(line) {
     const result = []; let cur = ''; let inQuotes = false;
     for (let i = 0; i < line.length; i++) {
@@ -388,6 +223,7 @@
     }
     result.push(cur); return result;
   }
+
   function importCSV(file) {
     const reader = new FileReader();
     reader.onload = e => {
@@ -400,14 +236,14 @@
         const platformCol = {};
         PLATFORMS.forEach(pf => { const idx = header.indexOf(pf); if (idx !== -1) platformCol[pf] = idx; });
         if (Object.keys(platformCol).length === 0) { alert('CSV 表头中没有找到平台列（q音/酷狗/酷我/波点/波点2）'); return; }
-        const importedAccounts = []; const importedData = {};
+
+        const importedData = {};
         for (let i = 1; i < lines.length; i++) {
           const cells = parseCSVLine(lines[i]);
           const rawName = cells[0] ? cells[0].trim() : '';
           if (!rawName || rawName === '平台合计') continue;
           const accName = normalizeName(rawName);
-          if (importedAccounts.includes(accName)) continue;
-          importedAccounts.push(accName); importedData[accName] = {};
+          if (!importedData[accName]) importedData[accName] = {};
           PLATFORMS.forEach(pf => {
             const colIdx = platformCol[pf]; let val = '';
             if (colIdx !== undefined && colIdx < cells.length) {
@@ -417,24 +253,43 @@
             importedData[accName][pf] = val;
           });
         }
-        if (!importedAccounts.length) { alert('没有在 CSV 中解析到有效账号，请检查第一列是否为账号名'); return; }
-        ACCOUNTS = importedAccounts; data = importedData;
-        ACCOUNTS.forEach(a => { if (!data[a]) data[a] = {}; PLATFORMS.forEach(p => { if (data[a][p] === undefined) data[a][p] = ''; }); });
-        saveAccounts(); saveData(); renderAll();
-        alert(`导入成功，共 ${ACCOUNTS.length} 个账号`);
+        if (Object.keys(importedData).length === 0) { alert('没有在 CSV 中解析到有效账号，请检查第一列是否为账号名'); return; }
+
+        data = {};
+        ACCOUNTS.forEach(a => {
+          data[a] = {};
+          PLATFORMS.forEach(p => {
+            data[a][p] = (importedData[a] && importedData[a][p] !== undefined) ? importedData[a][p] : '';
+          });
+        });
+        saveData(); renderAll();
+        alert('导入完成（已按当前统一账号列表匹配数据）');
       } catch(err) { console.error(err); alert('CSV 解析失败：' + err.message); }
     };
     reader.readAsText(file, 'UTF-8');
   }
 
-  // ===== 初始化 =====
+  window.addEventListener('message', function(e) {
+    if (!e.data || e.data.type !== 'accounts-changed') return;
+    const incoming = Array.isArray(e.data.accounts) ? e.data.accounts : [];
+    ACCOUNTS = incoming.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
+    data = loadData();
+    syncDataWithAccounts();
+    saveData();
+    renderAll();
+  });
+
   function init() {
-    initState(); renderAll();
-    const fileInput = document.getElementById('fileInput');
-    document.getElementById('importBtn').addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
-    fileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) importCSV(f); });
+    data = loadData();
+    renderAll();
+    document.getElementById('importBtn').addEventListener('click', () => {
+      const fi = document.getElementById('fileInput');
+      fi.value = ''; fi.click();
+    });
+    document.getElementById('fileInput').addEventListener('change', e => {
+      const f = e.target.files[0]; if (f) importCSV(f);
+    });
     document.getElementById('exportBtn').addEventListener('click', exportCSV);
-    document.getElementById('clearAccountsBtn').addEventListener('click', clearAllAccounts);
     document.getElementById('clearDataBtn').addEventListener('click', clearAllScores);
   }
   init();

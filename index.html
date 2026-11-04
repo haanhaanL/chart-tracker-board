@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>打榜数据录入 · 汇总</title>
+<link rel="stylesheet" href="common.css">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    display: block;
     background: #faf7f9;
     min-height: 100vh;
     padding: 6px;
-    color: #333;
+    overflow: auto;
   }
   h1 {
     text-align: center;
@@ -23,8 +23,48 @@
     text-align: center;
     color: #999;
     font-size: 12px;
-    margin-bottom: 18px;
+    margin-bottom: 12px;
   }
+
+  .global-toolbar {
+    max-width: 1600px;
+    margin: 0 auto 14px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
+    border: 1px solid rgba(234,54,144,0.10);
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .global-toolbar .label {
+    font-size: 12px; font-weight: bold; color: #ea3690;
+    white-space: nowrap; margin-right: 2px;
+  }
+  .global-toolbar input.new-account {
+    flex: 1 1 260px; min-width: 200px; height: 32px; padding: 0 10px;
+    border: 1px dashed #f0d6e4; border-radius: 8px; background: #fdf7fa;
+    color: #555; font-size: 12px; font-family: inherit; outline: none; transition: 0.15s;
+  }
+  .global-toolbar input.new-account:focus {
+    border-color: #ea3690; border-style: solid; background: #fff;
+    box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
+  }
+  .global-toolbar input.new-account::placeholder { color: #bbb; }
+  .global-toolbar button {
+    height: 32px; padding: 0 14px; border-radius: 16px;
+    border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
+    font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
+    outline: none; font-family: inherit; white-space: nowrap;
+  }
+  .global-toolbar button:hover { background: rgba(234,54,144,0.06); }
+  .global-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
+  .global-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
+  .global-toolbar .count { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
+  .global-toolbar .count b { color: #ea3690; }
+
   .module-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -32,6 +72,7 @@
     width: 100%;
     max-width: 1600px;
     margin: 0 auto;
+    align-items: stretch;   /* 同一行卡片等高 */
   }
   .module-card {
     background: white;
@@ -44,31 +85,38 @@
     min-width: 0;
   }
   .module-card .module-title {
-    background: #ea3690;
-    color: #fff;
-    font-size: 13px;
-    font-weight: bold;
-    padding: 7px 14px;
-    text-align: center;
-    flex-shrink: 0;
+    background: #ea3690; color: #fff; font-size: 13px; font-weight: bold;
+    padding: 7px 14px; text-align: center; flex-shrink: 0;
   }
   .module-card iframe {
     width: 100%;
     border: 0;
     display: block;
     background: #fff;
+    height: 420px;          /* 默认高度，消息到达后按最大值统一调整 */
     min-height: 120px;
   }
   @media (max-width: 900px) {
     .module-grid { grid-template-columns: 1fr; gap: 10px; }
     h1 { font-size: 16px; margin: 16px 0 8px; }
-    .subtitle { margin-bottom: 16px; }
+    .subtitle { margin-bottom: 10px; }
+    .global-toolbar input.new-account { flex-basis: 100%; }
+    .global-toolbar .count { margin-left: 0; width: 100%; text-align: right; }
   }
 </style>
 </head>
 <body>
   <h1>打榜数据录入</h1>
-  <div class="subtitle">账号 × 多平台 · 多模块（各模块独立维护）</div>
+  <div class="subtitle">账号统一管理 · 多模块独立数据</div>
+
+  <div class="global-toolbar">
+    <span class="label">统一账号</span>
+    <input class="new-account" type="text" id="globalNewAccount"
+           placeholder="输入账号名，逗号或空格分隔可一次新增多个，按回车确认">
+    <button id="globalAddBtn">新增</button>
+    <button id="globalClearAccountsBtn" class="danger">清空账号</button>
+    <span class="count">当前账号：<b id="globalAccountCount">0</b> 个</span>
+  </div>
 
   <div class="module-grid">
     <div class="module-card">
@@ -90,27 +138,146 @@
   </div>
 
   <script>
-    // 各模块 iframe 选择器映射
-    const IFRAME_MAP = {
-      youni: 'iframe[title="由你积分"]',
-      power: 'iframe[title="电力"]',
-      coin:  'iframe[title="金币"]',
-      play:  'iframe[title="刷播"]'
-    };
+    const ACCOUNTS_STORAGE_KEY = 'bang_global_accounts';
+    function loadGlobalAccounts() {
+      try {
+        const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) {
+            return arr.filter(x => typeof x === 'string' && x.trim() !== '')
+                      .map(x => x.trim().replace(/\s+/g, ' '));
+          }
+        }
+      } catch(e) {}
+      return [];
+    }
+    function saveGlobalAccounts(arr) {
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(arr));
+    }
+    let globalAccounts = loadGlobalAccounts();
+    function parseNames(input) {
+      if (!input || typeof input !== 'string') return [];
+      const parts = input.split(/[,，\s]+/);
+      const seen = new Set();
+      const result = [];
+      parts.forEach(p => {
+        const name = p.trim().replace(/\s+/g, ' ');
+        if (name && !seen.has(name)) { seen.add(name); result.push(name); }
+      });
+      return result;
+    }
+    function broadcastAccountsChanged() {
+      document.querySelectorAll('.module-card iframe').forEach(iframe => {
+        try {
+          iframe.contentWindow.postMessage({
+            type: 'accounts-changed',
+            accounts: globalAccounts
+          }, '*');
+        } catch(e) {}
+      });
+    }
+    function updateGlobalCount() {
+      const el = document.getElementById('globalAccountCount');
+      if (el) el.textContent = globalAccounts.length;
+    }
+    function addGlobalAccounts(inputEl) {
+      const names = parseNames(inputEl.value);
+      if (names.length === 0) { inputEl.value = ''; return; }
+      const existing = new Set(globalAccounts);
+      const added = [], skipped = [];
+      names.forEach(name => {
+        if (existing.has(name)) skipped.push(name);
+        else { existing.add(name); globalAccounts.push(name); added.push(name); }
+      });
+      if (added.length) {
+        saveGlobalAccounts(globalAccounts);
+        updateGlobalCount();
+        broadcastAccountsChanged();
+      }
+      inputEl.value = '';
+      if (skipped.length) {
+        alert(`以下账号已存在，已跳过：\n${skipped.join('、')}`);
+      }
+    }
+    function clearGlobalAccounts() {
+      if (globalAccounts.length === 0) { alert('当前已经没有账号了'); return; }
+      if (!confirm('确定要清空所有统一账号吗？各模块中对应的账号数据也会被移除，此操作不可撤销。')) return;
+      globalAccounts = [];
+      saveGlobalAccounts(globalAccounts);
+      updateGlobalCount();
+      broadcastAccountsChanged();
+    }
+    function initGlobalToolbar() {
+      updateGlobalCount();
+      const input = document.getElementById('globalNewAccount');
+      const addBtn = document.getElementById('globalAddBtn');
+      const clearBtn = document.getElementById('globalClearAccountsBtn');
+      addBtn.addEventListener('click', () => addGlobalAccounts(input));
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); addGlobalAccounts(this); }
+      });
+      input.addEventListener('blur', function() {
+        const el = this;
+        setTimeout(() => { if (el.value.trim()) addGlobalAccounts(el); }, 100);
+      });
+      clearBtn.addEventListener('click', clearGlobalAccounts);
+    }
 
-    // 监听子页面 postMessage 的高度变化
+    /* ===== 高度：收集各模块上报高度，取最大值统一设置所有 iframe ===== */
+    const IFRAME_MODULE_MAP = {
+      '由你积分': 'youni',
+      '电力（每 4 小时一轮）': 'power',
+      '金币': 'coin',
+      '刷播': 'play'
+    };
+    const MODULE_IFRAME_MAP = {};
+    document.querySelectorAll('.module-card iframe').forEach(iframe => {
+      const title = iframe.getAttribute('title');
+      const moduleName = IFRAME_MODULE_MAP[title] || title;
+      MODULE_IFRAME_MAP[moduleName] = iframe;
+    });
+
+    const moduleHeights = {};   // { moduleName: height }
+
+    function applyUniformHeight() {
+      const values = Object.values(moduleHeights).filter(h => typeof h === 'number' && h > 0);
+      if (values.length === 0) return;
+      const maxH = Math.max.apply(null, values);
+      Object.keys(MODULE_IFRAME_MAP).forEach(name => {
+        const iframe = MODULE_IFRAME_MAP[name];
+        if (iframe) iframe.style.height = maxH + 'px';
+      });
+    }
+
     window.addEventListener('message', function(e) {
-      if (!e.data || e.data.type !== 'resize') return;
-      const sel = IFRAME_MAP[e.data.module];
-      if (!sel) return;
-      const iframe = document.querySelector(sel);
-      if (iframe && typeof e.data.height === 'number' && e.data.height > 0) {
-        iframe.style.height = e.data.height + 'px';
+      if (!e.data) return;
+
+      // 子页面请求删除统一账号
+      if (e.data.type === 'delete-account') {
+        const name = e.data.account;
+        if (!name) return;
+        const idx = globalAccounts.indexOf(name);
+        if (idx === -1) return;
+        if (!confirm(`确定删除统一账号「${name}」吗？所有模块中该账号的数据都会被清除。`)) return;
+        globalAccounts.splice(idx, 1);
+        saveGlobalAccounts(globalAccounts);
+        updateGlobalCount();
+        broadcastAccountsChanged();
+        return;
+      }
+
+      // 高度上报
+      if (e.data.type === 'resize') {
+        const moduleName = e.data.module;
+        const h = Number(e.data.height) || 0;
+        if (!moduleName || h <= 0) return;
+        moduleHeights[moduleName] = h;
+        applyUniformHeight();
       }
     });
 
-    // 首次加载时，等待 iframe 内容就绪后读取高度（作为 postMessage 的兜底）
-    function syncIframeHeight(iframe) {
+    function syncIframeHeightFromDoc(iframe, moduleName) {
       try {
         const doc = iframe.contentWindow.document;
         const h = Math.max(
@@ -119,20 +286,29 @@
           doc.body.offsetHeight,
           doc.documentElement.offsetHeight
         );
-        if (h > 0) iframe.style.height = h + 'px';
-      } catch (err) {
-        // 跨域或未就绪时忽略，等 postMessage 通知
-      }
+        if (h > 0) {
+          moduleHeights[moduleName] = h;
+          applyUniformHeight();
+        }
+      } catch (err) {}
     }
 
-    // 给每个 iframe 绑定 load 兜底同步
     document.querySelectorAll('.module-card iframe').forEach(iframe => {
+      const title = iframe.getAttribute('title');
+      const moduleName = IFRAME_MODULE_MAP[title] || title;
       iframe.addEventListener('load', function() {
-        syncIframeHeight(this);
-        // 部分浏览器 load 时高度尚未最终确定，延迟再同步一次
-        setTimeout(() => syncIframeHeight(this), 300);
+        try {
+          this.contentWindow.postMessage({
+            type: 'accounts-changed',
+            accounts: globalAccounts
+          }, '*');
+        } catch(e) {}
+        syncIframeHeightFromDoc(this, moduleName);
+        setTimeout(() => syncIframeHeightFromDoc(this, moduleName), 300);
       });
     });
+
+    initGlobalToolbar();
   </script>
 </body>
 </html>
