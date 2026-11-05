@@ -13,7 +13,7 @@
     transition: 0.15s; font-size: 14px; color: transparent; font-weight: bold; user-select: none; flex-shrink: 0;
   }
   .check-box:hover { border-color: #fd8ec6; }
-  .check-box.checked { background: linear-gradient(135deg, #fd8ec6, #ff8f40); border-color: #fd8ec6; color: #fff; }
+  .check-box.checked { background: #ff8f40;; border-color: #ff8f40; color: #fff; }
   .daily-check {
     width: 22px; height: 22px; border-radius: 6px; border: 2px solid #f0d6e4; background: white;
     cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
@@ -296,7 +296,7 @@
           <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="teamPower" value="${escapeHtml(teamPower)}"></td>
           <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="personalPower" value="${escapeHtml(personalPower)}"></td>
           <td><input class="remark-input" type="text" placeholder="备注" data-acc="${escapeHtml(a)}" value="${escapeHtml(remark)}"></td>
-          <td><div class="disable-check ${disabled ? 'checked' : ''}" data-acc="${escapeHtml(a)}" title="${disabled ? '取消无法使用' : '标记为无法使用'}">${disabled ? '✓' : ''}</div></td>
+          <td><div class="disable-check ${disabled ? 'checked' : ''}" data-acc="${escapeHtml(a)}" title="${disabled ? '取消无法使用' : '标记为无法使用'}">${disabled ? '✕' : ''}</div></td>
           <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
         </tr>`;
       }).join('');
