@@ -8,84 +8,27 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   table { min-width: 640px; }
-
-  .platform-cell {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    min-height: 38px;
-    padding: 2px 0;
-  }
-
-  .platform-cell input.score {
-    margin: 0;
-    width: 56px;
-    max-width: 56px;
-    flex: 0 0 56px;
-  }
-
+  .platform-cell { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 38px; padding: 2px 0; }
+  .platform-cell input.score { margin: 0; width: 56px; max-width: 56px; flex: 0 0 56px; }
   .daily-check {
-    width: 18px;
-    height: 18px;
-    border-radius: 5px;
-    border: 1.5px solid #f0d6e4;
-    background: white;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.15s;
-    font-size: 11px;
-    color: transparent;
-    font-weight: bold;
-    user-select: none;
-    flex: 0 0 18px;
+    width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid #f0d6e4; background: white;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    transition: 0.15s; font-size: 11px; color: transparent; font-weight: bold; user-select: none; flex: 0 0 18px;
   }
   .daily-check:hover { border-color: #f97316; }
-  .daily-check.checked {
-    background: #f97316;
-    border-color: #f97316;
-    color: #fff;
-  }
-
-  .col-total-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    width: 100%;
-  }
-  .col-total-wrap .col-total {
-    width: 56px;
-    flex: 0 0 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .col-total-wrap .total-spacer {
-    width: 18px;
-    flex: 0 0 18px;
-  }
-
+  .daily-check.checked { background: #f97316; border-color: #f97316; color: #fff; }
+  .col-total-wrap { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; }
+  .col-total-wrap .col-total { width: 56px; flex: 0 0 56px; display: flex; align-items: center; justify-content: center; }
+  .col-total-wrap .total-spacer { width: 18px; flex: 0 0 18px; }
   .del-btn {
-    width: 24px; height: 24px; border-radius: 50%;
-    border: 1px solid rgba(231,76,60,0.35);
-    background: white; color: #e74c3c; font-size: 14px; line-height: 1;
-    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-    transition: 0.15s; font-family: inherit; padding: 0;
+    width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(231,76,60,0.35);
+    background: white; color: #e74c3c; font-size: 14px; line-height: 1; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;
+    font-family: inherit; padding: 0;
   }
   .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #e74c3c; }
-
-  .stats-row.two {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  input.score.highlight {
-    color: #22c55e;
-    border-color: #22c55e;
-    background: rgba(34, 197, 94, 0.06);
-    font-weight: bold;
-  }
+  .stats-row.two { grid-template-columns: repeat(2, 1fr); }
+  input.score.highlight { color: #22c55e; border-color: #22c55e; background: rgba(34, 197, 94, 0.06); font-weight: bold; }
 </style>
 </head>
 <body>
@@ -96,7 +39,7 @@
 
   <div class="toolbar">
     <button id="clearScoresBtn" class="danger">清空积分</button>
-    <button id="clearTasksBtn" class="danger">清空任务</button>
+    <button id="clearTasksBtn" class="danger">重置任务</button>
   </div>
 
   <div class="table-box" id="tableBox"></div>
@@ -123,20 +66,18 @@
   function notifyResize() {
     if (window.parent && window.parent !== window) {
       try {
-        window.parent.postMessage({
-          type: 'resize',
-          module: 'youni',
-          height: document.body.scrollHeight
-        }, '*');
+        window.parent.postMessage({ type: 'resize', module: 'youni', height: document.body.scrollHeight }, '*');
       } catch(e) {}
     }
   }
-
+  function notifyDirty() {
+    if (window.parent && window.parent !== window) {
+      try { window.parent.postMessage({ type: 'dirty' }, '*'); } catch(e) {}
+    }
+  }
   function requestDeleteAccount(name) {
     if (window.parent && window.parent !== window) {
-      try {
-        window.parent.postMessage({ type: 'delete-account', account: name }, '*');
-      } catch(e) {}
+      try { window.parent.postMessage({ type: 'delete-account', account: name }, '*'); } catch(e) {}
     }
   }
 
@@ -147,11 +88,7 @@
         const obj = JSON.parse(raw);
         if (obj && typeof obj === 'object') {
           if (obj.scores && typeof obj.scores === 'object') {
-            return {
-              scores: obj.scores,
-              daily: obj.daily || {},
-              dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : ''
-            };
+            return { scores: obj.scores, daily: obj.daily || {}, dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : '' };
           }
           return { scores: obj, daily: {}, dailyDate: '' };
         }
@@ -160,28 +97,22 @@
     return { scores: {}, daily: {}, dailyDate: '' };
   }
   function saveData() {
-    localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify({
-      scores: data,
-      daily: daily,
-      dailyDate: dailyDate
-    }));
+    localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify({ scores: data, daily: daily, dailyDate: dailyDate }));
   }
 
-  // 跨天检查：只改数据，不重建表格
   function checkDailyReset() {
     const today = todayStr();
     if (dailyDate === today) return false;
-
     ACCOUNTS.forEach(a => {
       if (!daily[a]) daily[a] = {};
       PLATFORMS.forEach(p => { daily[a][p] = false; });
     });
     dailyDate = today;
     saveData();
+    notifyDirty();
     return true;
   }
 
-  // 只清空页面上的勾选框 DOM，不动 input 和账号列
   function clearDailyChecksDom() {
     document.querySelectorAll('.daily-check').forEach(el => {
       el.classList.remove('checked');
@@ -197,14 +128,12 @@
       if (!normalizedScores[nk]) normalizedScores[nk] = data[k];
     });
     data = normalizedScores;
-
     const normalizedDaily = {};
     Object.keys(daily).forEach(k => {
       const nk = normalizeName(k);
       if (!normalizedDaily[nk]) normalizedDaily[nk] = daily[k];
     });
     daily = normalizedDaily;
-
     ACCOUNTS.forEach(a => {
       if (!data[a]) data[a] = {};
       if (!daily[a]) daily[a] = {};
@@ -245,12 +174,7 @@
     }
 
     const footCells = PLATFORMS.map((_, i) => `
-      <td>
-        <div class="col-total-wrap">
-          <div class="col-total" id="ct-${i}">0</div>
-          <div class="total-spacer"></div>
-        </div>
-      </td>
+      <td><div class="col-total-wrap"><div class="col-total" id="ct-${i}">0</div><div class="total-spacer"></div></div></td>
     `).join('');
 
     box.innerHTML = `<table>
@@ -272,6 +196,7 @@
         const n = parseInt(this.value, 10);
         this.classList.toggle('highlight', !isNaN(n) && n > 112);
         saveData();
+        notifyDirty();
         updateStats();
         notifyResize();
       });
@@ -286,15 +211,14 @@
         this.classList.toggle('checked');
         this.textContent = daily[a][p] ? '✓' : '';
         saveData();
+        notifyDirty();
         updateStats();
         notifyResize();
       });
     });
 
     box.querySelectorAll('.del-btn').forEach(btn => {
-      btn.addEventListener('click', function(){
-        requestDeleteAccount(this.dataset.acc);
-      });
+      btn.addEventListener('click', function(){ requestDeleteAccount(this.dataset.acc); });
     });
 
     updateStats();
@@ -305,7 +229,6 @@
     let grand = 0;
     const colTotals = PLATFORMS.map(() => 0);
     let checkedCount = 0;
-
     ACCOUNTS.forEach(a => {
       PLATFORMS.forEach((p, idx) => {
         const raw = (data[a] && data[a][p] !== undefined) ? data[a][p] : '';
@@ -316,19 +239,15 @@
         if (daily[a] && daily[a][p]) checkedCount++;
       });
     });
-
     PLATFORMS.forEach((_, idx) => {
       const el = document.getElementById(`ct-${idx}`);
       if (el) el.textContent = colTotals[idx];
     });
-
     const t = document.getElementById('totalScore');
     if (t) t.textContent = grand.toLocaleString();
-
     const total = ACCOUNTS.length * PLATFORMS.length;
     const d = document.getElementById('doneCount');
     if (d) d.textContent = `${checkedCount} / ${total}`;
-
     notifyResize();
   }
 
@@ -347,28 +266,27 @@
       PLATFORMS.forEach(p => { data[a][p] = ''; });
     });
     saveData();
-    // 只清空输入框，不重建表格
+    notifyDirty();
     document.querySelectorAll('input.score').forEach(inp => { inp.value = ''; });
     updateStats();
     notifyResize();
   }
 
   function clearTasks() {
-    if (!ACCOUNTS.length) { alert('当前没有账号，无需清空任务'); return; }
+    if (!ACCOUNTS.length) { alert('当前没有账号，无需重置任务'); return; }
     let has = false;
     ACCOUNTS.forEach(a => {
-      PLATFORMS.forEach(p => {
-        if (daily[a] && daily[a][p]) has = true;
-      });
+      PLATFORMS.forEach(p => { if (daily[a] && daily[a][p]) has = true; });
     });
     if (!has) { alert('当前所有每日任务勾选已经是空的'); return; }
-    if (!confirm('确定要清空所有账号的每日任务勾选吗？积分会保留。')) return;
+    if (!confirm('确定要重置所有账号的每日任务勾选吗？积分会保留。')) return;
     ACCOUNTS.forEach(a => {
       if (!daily[a]) daily[a] = {};
       PLATFORMS.forEach(p => { daily[a][p] = false; });
     });
     dailyDate = todayStr();
     saveData();
+    notifyDirty();
     clearDailyChecksDom();
   }
 
@@ -381,14 +299,10 @@
     daily = loaded.daily;
     dailyDate = loaded.dailyDate;
     syncDataWithAccounts();
-    if (checkDailyReset()) {
-      // 跨天：只清勾选框，不重建表格
-      clearDailyChecksDom();
-    }
+    if (checkDailyReset()) clearDailyChecksDom();
     renderAll();
   });
 
-  // ===== 截图响应（账号打码 ***） =====
   window.addEventListener('message', async function(e) {
     if (!e.data || e.data.type !== 'capture') return;
     try {
@@ -398,43 +312,27 @@
         window.parent.postMessage({ type: 'capture-result', dataURL: null }, '*');
         return;
       }
-
-      // 克隆统计卡片
       const statsClone = statsRow.cloneNode(true);
-
-      // 克隆表格
       const tableClone = tableBox.cloneNode(true);
-      // 删除操作列（每行最后一个 td / th）
       tableClone.querySelectorAll('tr').forEach(tr => {
         const cells = tr.children;
-        if (cells.length > 0) {
-          tr.removeChild(cells[cells.length - 1]);
-        }
+        if (cells.length > 0) tr.removeChild(cells[cells.length - 1]);
       });
-
-      // 同步删除 colgroup 里操作列对应的 col
       const colgroup = tableClone.querySelector('colgroup');
       if (colgroup) {
         const cols = colgroup.querySelectorAll('col');
-        if (cols.length > 0) {
-          colgroup.removeChild(cols[cols.length - 1]);
-        }
+        if (cols.length > 0) colgroup.removeChild(cols[cols.length - 1]);
       }
       tableClone.querySelectorAll('tbody tr').forEach((tr, idx) => {
         const accountText = tr.querySelector('.account-text');
         if (accountText) accountText.textContent = `${idx + 1}.***`;
       });
-      tableClone.querySelectorAll('.account-cell').forEach(el => {
-        el.removeAttribute('title');
-      });
-      tableClone.querySelectorAll('[data-acc]').forEach(el => {
-        el.setAttribute('data-acc', '***');
-      });
+      tableClone.querySelectorAll('.account-cell').forEach(el => el.removeAttribute('title'));
+      tableClone.querySelectorAll('[data-acc]').forEach(el => el.setAttribute('data-acc', '***'));
       tableClone.scrollLeft = 0;
       tableClone.style.maxHeight = 'none';
       tableClone.style.overflowY = 'visible';
 
-      // 临时容器：宽度至少 800，保证移动端也能完整渲染
       const wrapper = document.createElement('div');
       wrapper.style.background = '#fff';
       wrapper.style.padding = '8px';
@@ -443,7 +341,6 @@
       wrapper.style.left = '-99999px';
       wrapper.style.top = '0';
       wrapper.style.zIndex = '-1';
-      // 截图时放大字号
       const styleOverride = document.createElement('style');
       styleOverride.textContent = `
         .capture-mode table { font-size: 14px !important; }
@@ -454,23 +351,13 @@
       wrapper.appendChild(statsClone);
       wrapper.appendChild(tableClone);
       document.body.appendChild(wrapper);
-
-      // 等一帧让布局稳定
       await new Promise(r => setTimeout(r, 50));
-
       const canvas = await html2canvas(wrapper, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        width: wrapper.scrollWidth,
-        height: wrapper.scrollHeight
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false,
+        width: wrapper.scrollWidth, height: wrapper.scrollHeight
       });
-
       document.body.removeChild(wrapper);
-
-      const dataURL = canvas.toDataURL('image/png');
-      window.parent.postMessage({ type: 'capture-result', dataURL: dataURL }, '*');
+      window.parent.postMessage({ type: 'capture-result', dataURL: canvas.toDataURL('image/png') }, '*');
     } catch(err) {
       console.error('capture failed', err);
       window.parent.postMessage({ type: 'capture-result', dataURL: null }, '*');
@@ -482,31 +369,18 @@
     data = loaded.scores;
     daily = loaded.daily;
     dailyDate = loaded.dailyDate;
-
     syncDataWithAccounts();
     if (checkDailyReset()) {
-      // 初始化时跨天，先加载表格，再清勾选框
       renderAll();
       clearDailyChecksDom();
     } else {
       renderAll();
     }
-
     document.getElementById('clearScoresBtn').addEventListener('click', clearScores);
     document.getElementById('clearTasksBtn').addEventListener('click', clearTasks);
-
-    setInterval(() => {
-      if (checkDailyReset()) {
-        clearDailyChecksDom();
-      }
-    }, 60 * 1000);
-
+    setInterval(() => { if (checkDailyReset()) clearDailyChecksDom(); }, 60 * 1000);
     document.addEventListener('visibilitychange', function() {
-      if (!document.hidden) {
-        if (checkDailyReset()) {
-          clearDailyChecksDom();
-        }
-      }
+      if (!document.hidden) { if (checkDailyReset()) clearDailyChecksDom(); }
     });
   }
   init();

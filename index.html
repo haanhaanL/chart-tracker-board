@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>打榜数据录入 · 汇总</title>
+<title>穆祉丞051</title>
 <link rel="stylesheet" href="common.css">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -15,7 +15,6 @@
     padding: 6px;
     overflow: auto;
   }
-  /* 全屏平铺水印 */
   body::after {
     content: "";
     position: fixed;
@@ -26,351 +25,118 @@
     background-repeat: repeat;
     background-size: 200px 120px;
   }
-
-  /* 标题区：居中 */
-  .header-area {
-    max-width: 1600px;
-    margin: 0 auto 6px;
-    text-align: center;
-    padding: 0 4px;
+  .header-area { max-width: 1600px; margin: 0 auto 6px; text-align: center; padding: 0 4px; }
+  .header-area h1 { color: #ea3690; font-size: 18px; margin: 22px 0 10px; }
+  .header-area .subtitle { color: #999; font-size: 12px; margin-bottom: 6px; }
+  .auth-row { max-width: 1600px; margin: 0 auto 12px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 0 4px; }
+  .auth-text-btn { background: transparent; border: none; color: #ea3690; font-size: 13px; font-weight: bold; cursor: pointer; padding: 2px 0; font-family: inherit; transition: 0.15s; white-space: nowrap; }
+  .auth-text-btn:hover { text-decoration: underline; }
+  .auth-text-btn.danger { color: #e74c3c; }
+  .auth-user { font-size: 12px; color: #555; font-weight: bold; white-space: nowrap; }
+  .auth-user b { color: #ea3690; }
+  .global-toolbar, .backup-toolbar {
+    max-width: 1600px; margin: 0 auto 14px; background: #fff; border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(234,54,144,0.07); border: 1px solid rgba(234,54,144,0.10);
+    padding: 10px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   }
-  .header-area h1 {
-    color: #ea3690;
-    font-size: 18px;
-    margin: 22px 0 10px;
-  }
-  .header-area .subtitle {
-    color: #999;
-    font-size: 12px;
-    margin-bottom: 6px;
-  }
-
-  /* 登录按钮：单独一行右对齐 */
-  .auth-row {
-    max-width: 1600px;
-    margin: 0 auto 12px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 10px;
-    padding: 0 4px;
-  }
-  .auth-text-btn {
-    background: transparent;
-    border: none;
-    color: #ea3690;
-    font-size: 13px;
-    font-weight: bold;
-    cursor: pointer;
-    padding: 2px 0;
-    font-family: inherit;
-    transition: 0.15s;
-    white-space: nowrap;
-  }
-  .auth-text-btn:hover {
-    text-decoration: underline;
-  }
-  .auth-text-btn.danger {
-    color: #e74c3c;
-  }
-  .auth-user {
-    font-size: 12px;
-    color: #555;
-    font-weight: bold;
-    white-space: nowrap;
-  }
-  .auth-user b {
-    color: #ea3690;
-  }
-
-  .global-toolbar {
-    max-width: 1600px;
-    margin: 0 auto 14px;
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
-    border: 1px solid rgba(234,54,144,0.10);
-    padding: 10px 12px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-  }
-  .global-toolbar .label {
-    font-size: 12px; font-weight: bold; color: #ea3690;
-    white-space: nowrap; margin-right: 2px;
-  }
+  .global-toolbar .label, .backup-toolbar .label { font-size: 12px; font-weight: bold; color: #ea3690; white-space: nowrap; margin-right: 2px; }
   .global-toolbar input.new-account {
     flex: 1 1 260px; min-width: 200px; height: 32px; padding: 0 10px;
-    border: 1px dashed #f0d6e4; border-radius: 8px; background: #fdf7fa;
-    color: #555; font-size: 12px; font-family: inherit; outline: none; transition: 0.15s;
+    border: 1px dashed #f0d6e4; border-radius: 8px; background: #fdf7fa; color: #555;
+    font-size: 12px; font-family: inherit; outline: none; transition: 0.15s;
   }
-  .global-toolbar input.new-account:focus {
-    border-color: #ea3690; border-style: solid; background: #fff;
-    box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
-  }
+  .global-toolbar input.new-account:focus { border-color: #ea3690; border-style: solid; background: #fff; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
   .global-toolbar input.new-account::placeholder { color: #bbb; }
-  .global-toolbar button {
-    height: 32px; padding: 0 14px; border-radius: 16px;
-    border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
-    font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
-    outline: none; font-family: inherit; white-space: nowrap;
+  .global-toolbar button, .backup-toolbar button {
+    height: 32px; padding: 0 14px; border-radius: 16px; border: 1px solid rgba(234,54,144,0.35);
+    background: white; color: #ea3690; font-size: 12px; font-weight: bold; cursor: pointer;
+    transition: all 0.2s ease; outline: none; font-family: inherit; white-space: nowrap;
   }
-  .global-toolbar button:hover { background: rgba(234,54,144,0.06); }
-  .global-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
-  .global-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
+  .global-toolbar button:hover, .backup-toolbar button:hover { background: rgba(234,54,144,0.06); }
+  .global-toolbar button.danger, .backup-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
+  .global-toolbar button.danger:hover, .backup-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
   .global-toolbar .count { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
   .global-toolbar .count b { color: #ea3690; }
-
-  .backup-toolbar {
-    max-width: 1600px;
-    margin: 0 auto 14px;
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
-    border: 1px solid rgba(234,54,144,0.10);
-    padding: 10px 12px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-  }
-  .backup-toolbar .label {
-    font-size: 12px; font-weight: bold; color: #ea3690;
-    white-space: nowrap; margin-right: 2px;
-  }
-  .backup-toolbar button {
-    height: 32px; padding: 0 14px; border-radius: 16px;
-    border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
-    font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
-    outline: none; font-family: inherit; white-space: nowrap;
-  }
-  .backup-toolbar button:hover { background: rgba(234,54,144,0.06); }
-  .backup-toolbar button:disabled {
-    opacity: 0.45; cursor: not-allowed;
-    border-color: #e0e0e0; color: #aaa;
-  }
-  .backup-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
-  .backup-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
+  .backup-toolbar button:disabled { opacity: 0.45; cursor: not-allowed; border-color: #e0e0e0; color: #aaa; }
   .backup-toolbar .hint { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
-
   .module-tabs {
-    display: none;
-    max-width: 1600px;
-    margin: 0 auto 10px;
-    gap: 0;
-    flex-wrap: nowrap;
-    overflow: hidden;
-    background: #fff;
-    border: 1px solid rgba(234,54,144,0.35);
-    border-radius: 18px;
-    padding: 3px;
+    display: none; max-width: 1600px; margin: 0 auto 10px; gap: 0; flex-wrap: nowrap; overflow: hidden;
+    background: #fff; border: 1px solid rgba(234,54,144,0.35); border-radius: 18px; padding: 3px;
     box-shadow: 0 2px 8px rgba(234,54,144,0.06);
   }
   .module-tab-btn {
-    flex: 1;
-    min-width: 0;
-    padding: 7px 6px;
-    border-radius: 15px;
-    border: none;
-    background: transparent;
-    color: #ea3690;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    outline: none;
-    font-family: inherit;
-    white-space: nowrap;
+    flex: 1; min-width: 0; padding: 7px 6px; border-radius: 15px; border: none; background: transparent;
+    color: #ea3690; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
+    outline: none; font-family: inherit; white-space: nowrap;
   }
-  .module-tab-btn.active {
-    background: #ea3690;
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(234,54,144,0.25);
-  }
-
+  .module-tab-btn.active { background: #ea3690; color: #fff; box-shadow: 0 2px 6px rgba(234,54,144,0.25); }
   .module-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    width: 100%;
-    max-width: 1600px;
-    margin: 0 auto 40px;
-    align-items: stretch;
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%;
+    max-width: 1600px; margin: 0 auto 40px; align-items: stretch;
   }
   .module-card {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
-    border: 1px solid rgba(234,54,144,0.10);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
+    background: white; border-radius: 10px; box-shadow: 0 3px 10px rgba(234,54,144,0.07);
+    border: 1px solid rgba(234,54,144,0.10); overflow: hidden; display: flex;
+    flex-direction: column; min-width: 0;
   }
-  .module-card .module-title {
-    background: #ea3690; color: #fff; font-size: 13px; font-weight: bold;
-    padding: 7px 14px; text-align: center; flex-shrink: 0;
-  }
-  .module-card iframe {
-    width: 100%;
-    border: 0;
-    display: block;
-    background: #fff;
-    height: 420px;
-    min-height: 120px;
-  }
-
+  .module-card .module-title { background: #ea3690; color: #fff; font-size: 13px; font-weight: bold; padding: 7px 14px; text-align: center; flex-shrink: 0; }
+  .module-card iframe { width: 100%; border: 0; display: block; background: #fff; height: 420px; min-height: 120px; }
   @media (max-width: 900px) {
     .header-area h1 { font-size: 16px; margin: 16px 0 8px; }
     .auth-row { justify-content: flex-end; }
     .module-tabs { display: flex; }
-    .module-grid {
-      display: block;
-      margin-bottom: 30px;
-    }
-    .module-card {
-      display: none;
-      margin-bottom: 0;
-    }
-    .module-card.active {
-      display: flex;
-    }
-    .module-card.force-show {
-      display: flex !important;
-      margin-bottom: 8px;
-    }
+    .module-grid { display: block; margin-bottom: 30px; }
+    .module-card { display: none; margin-bottom: 0; }
+    .module-card.active { display: flex; }
+    .module-card.force-show { display: flex !important; margin-bottom: 8px; }
     .global-toolbar input.new-account { flex-basis: 100%; }
     .global-toolbar .count { margin-left: 0; width: 100%; text-align: right; }
     .backup-toolbar .hint { margin-left: 0; width: 100%; text-align: right; }
   }
-
   #importJsonInput { display: none; }
-
-  /* ===== 统一弹窗 ===== */
   .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 99999;
-    padding: 16px;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex;
+    align-items: center; justify-content: center; z-index: 99999; padding: 16px;
     animation: fadeIn 0.15s ease;
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .modal-box {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(234,54,144,0.2);
-    border: 1px solid rgba(234,54,144,0.15);
-    max-width: 380px;
-    width: 100%;
-    overflow: hidden;
-    animation: popIn 0.18s ease;
+    background: #fff; border-radius: 12px; box-shadow: 0 10px 40px rgba(234,54,144,0.2);
+    border: 1px solid rgba(234,54,144,0.15); max-width: 380px; width: 100%;
+    overflow: hidden; animation: popIn 0.18s ease;
   }
-  @keyframes popIn {
-    from { transform: scale(0.95); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-  }
-  .modal-title {
-    background: transparent;
-    color: #ea3690;
-    font-size: 15px;
-    font-weight: bold;
-    padding: 16px 16px 0 16px;
-    text-align: center;
-  }
-  .modal-body {
-    padding: 12px 16px 16px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .modal-message {
-    font-size: 12px;
-    color: #666;
-    line-height: 1.6;
-    text-align: center;
-  }
-  .modal-message b {
-  color: #ea3690;
-  font-weight: bold;
-}
+  @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-title { background: transparent; color: #ea3690; font-size: 15px; font-weight: bold; padding: 16px 16px 0 16px; text-align: center; }
+  .modal-body { padding: 12px 16px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .modal-message { font-size: 12px; color: #666; line-height: 1.6; text-align: center; }
+  .modal-message b { color: #ea3690; font-weight: bold; }
   .modal-message .hint { font-size: 11px; color: #999; }
-  .modal-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .modal-field label {
-    font-size: 11px;
-    color: #999;
-    font-weight: bold;
-    padding-left: 4px;
-  }
+  .modal-field { display: flex; flex-direction: column; gap: 4px; }
+  .modal-field label { font-size: 11px; color: #999; font-weight: bold; padding-left: 4px; }
   .modal-input {
-    width: 100%;
-    height: 38px;
-    padding: 0 12px;
-    border: 1px solid #f0d6e4;
-    border-radius: 8px;
-    background: #FFFFFF;
-    color: #333;
-    font-size: 15px;
-    font-family: inherit;
-    outline: none;
-    transition: 0.15s;
+    width: 100%; height: 38px; padding: 0 12px; border: 1px solid #f0d6e4; border-radius: 8px;
+    background: #FFFFFF; color: #333; font-size: 15px; font-family: inherit; outline: none; transition: 0.15s;
   }
-  .modal-input:focus {
-    border-color: #ea3690;
-    background: #fff;
-    box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
-  }
-  .modal-input::placeholder {
-    color: #ccc;
-    font-weight: normal;
-  }
+  .modal-input:focus { border-color: #ea3690; background: #fff; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
+  .modal-input::placeholder { color: #ccc; font-weight: normal; }
   .modal-actions { display: flex; gap: 8px; }
   .modal-actions button {
-    flex: 1;
-    height: 38px;
-    border-radius: 19px;
-    font-size: 13px;
-    font-weight: bold;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s ease;
-    outline: none;
+    flex: 1; height: 38px; border-radius: 19px; font-size: 13px; font-weight: bold;
+    cursor: pointer; font-family: inherit; transition: all 0.2s ease; outline: none;
   }
-  .modal-btn-cancel {
-    border: 1px solid rgba(234,54,144,0.35);
-    background: #fff;
-    color: #ea3690;
-  }
+  .modal-btn-cancel { border: 1px solid rgba(234,54,144,0.35); background: #fff; color: #ea3690; }
   .modal-btn-cancel:hover { background: rgba(234,54,144,0.06); }
-  .modal-btn-ok {
-    border: 1px solid #ea3690;
-    background: #ea3690;
-    color: #fff;
-    box-shadow: 0 3px 10px rgba(234,54,144,0.25);
-  }
+  .modal-btn-ok { border: 1px solid #ea3690; background: #ea3690; color: #fff; box-shadow: 0 3px 10px rgba(234,54,144,0.25); }
   .modal-btn-ok:hover { background: #d42f80; border-color: #d42f80; }
-  .modal-btn-secondary {
-    border: 1px solid rgba(234,54,144,0.35);
-    background: #fff;
-    color: #ea3690;
-  }
+  .modal-btn-secondary { border: 1px solid rgba(234,54,144,0.35); background: #fff; color: #ea3690; }
   .modal-btn-secondary:hover { background: rgba(234,54,144,0.06); }
 </style>
 </head>
 <body>
 
-  <!-- 顶部：标题 + 登录按钮 -->
   <div class="header-area">
-    <h1 id="exportTitle">打榜数据录入</h1>
-    <div class="subtitle" id="exportSubtitle">账号统一管理 · 多模块独立数据</div>
+    <h1 id="exportTitle">穆祉丞051</h1>
+    <div class="subtitle" id="exportSubtitle">专注EP</div>
   </div>
 
   <div class="auth-row" id="authBar">
@@ -433,11 +199,32 @@
     let currentUser = null;
     let cloudReady = false;
 
-    function setCloudStatus(text, ok) {
+    const LOCAL_CHANGE_KEY = 'bang_last_local_change';
+    let cloudLastUpdatedAt = null;
+    let syncInProgress = false;
+
+    function getLocalChangeTs() {
+      return parseInt(localStorage.getItem(LOCAL_CHANGE_KEY) || '0', 10);
+    }
+    function setLocalChangeNow(ts) {
+      const v = (typeof ts === 'number' && ts > 0) ? ts : Date.now();
+      localStorage.setItem(LOCAL_CHANGE_KEY, String(v));
+    }
+    function formatTs(isoOrMs) {
+      if (!isoOrMs) return '—';
+      const d = new Date(isoOrMs);
+      if (isNaN(d.getTime())) return '—';
+      const p = n => String(n).padStart(2, '0');
+      return `${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+    function setCloudStatus(text, type) {
       const el = document.getElementById('cloudStatus');
       if (!el) return;
       el.textContent = text;
-      el.style.color = ok ? '#22c55e' : '#999';
+      if (type === 'ok') el.style.color = '#22c55e';
+      else if (type === 'warn') el.style.color = '#f97316';
+      else if (type === 'error') el.style.color = '#e74c3c';
+      else el.style.color = '#999';
     }
 
     function updateAuthUI() {
@@ -446,7 +233,6 @@
       const userSpan = document.getElementById('authUser');
       const saveBtn = document.getElementById('cloudSaveBtn');
       const loadBtn = document.getElementById('cloudLoadBtn');
-
       if (currentUser) {
         openBtn.style.display = 'none';
         logoutBtn.style.display = '';
@@ -461,27 +247,26 @@
         userSpan.innerHTML = '';
         saveBtn.disabled = true;
         loadBtn.disabled = true;
-        setCloudStatus('请先登录', false);
+        setCloudStatus('请先登录', 'muted');
       }
     }
 
     async function initSupabase() {
       try {
         supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
         supabaseClient.auth.onAuthStateChange((event, session) => {
           if (session && session.user) {
+            const isNewLogin = !currentUser || currentUser.id !== session.user.id;
             currentUser = session.user;
             cloudReady = true;
             updateAuthUI();
-            pullFromCloud(true);
+            if (isNewLogin) pullFromCloud(true);
           } else {
             currentUser = null;
             cloudReady = false;
             updateAuthUI();
           }
         });
-
         const { data, error } = await supabaseClient.auth.getSession();
         if (error) throw error;
         if (data.session && data.session.user) {
@@ -494,7 +279,7 @@
         }
       } catch (err) {
         console.error('Supabase init failed', err);
-        setCloudStatus('云端连接失败：' + (err.message || err), false);
+        setCloudStatus('云端连接失败：' + (err.message || err), 'error');
       }
     }
 
@@ -527,34 +312,23 @@
         </div>
       `;
       document.body.appendChild(overlay);
-
       const emailInput = overlay.querySelector('#modalAuthEmail');
       const pwdInput = overlay.querySelector('#modalAuthPassword');
       const loginBtn = overlay.querySelector('#modalAuthLogin');
       const regBtn = overlay.querySelector('#modalAuthRegister');
-
       setTimeout(() => emailInput.focus(), 50);
-
-      function close() {
-        overlay.remove();
-        document.removeEventListener('keydown', onKey);
-      }
+      function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
       function onKey(e) {
         if (e.key === 'Escape') { e.preventDefault(); close(); }
         else if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
       }
       document.addEventListener('keydown', onKey);
-      overlay.addEventListener('click', function(e){
-        if (e.target === overlay) close();
-      });
+      overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
 
       async function doLogin() {
         const email = emailInput.value.trim();
         const password = pwdInput.value;
-        if (!email || !password) {
-          showAlert('提示', '请填写邮箱和密码');
-          return;
-        }
+        if (!email || !password) { showAlert('提示', '请填写邮箱和密码'); return; }
         try {
           const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
           if (error) throw error;
@@ -562,52 +336,30 @@
           showAlert('登录成功', '已登录，正在同步云端数据...');
         } catch (err) {
           const msg = err.message || String(err);
-          if (msg.includes('Invalid login credentials')) {
-            showAlert('登录失败', '邮箱或密码错误，请检查后重试。');
-          } else {
-            showAlert('登录失败', escapeHtml(msg));
-          }
+          if (msg.includes('Invalid login credentials')) showAlert('登录失败', '邮箱或密码错误，请检查后重试。');
+          else showAlert('登录失败', escapeHtml(msg));
         }
       }
-
       async function doRegister() {
         const email = emailInput.value.trim();
         const password = pwdInput.value;
-        if (!email || !password) {
-          showAlert('提示', '请填写邮箱和密码');
-          return;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          showAlert('提示', '邮箱格式不对，例如 xiaoming@example.com');
-          return;
-        }
-        if (password.length < 6) {
-          showAlert('提示', '密码至少 6 位');
-          return;
-        }
+        if (!email || !password) { showAlert('提示', '请填写邮箱和密码'); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showAlert('提示', '邮箱格式不对，例如 xiaoming@example.com'); return; }
+        if (password.length < 6) { showAlert('提示', '密码至少 6 位'); return; }
         try {
           const { data, error } = await supabaseClient.auth.signUp({ email, password });
           if (error) throw error;
           close();
-          if (data.session) {
-            showAlert('注册成功', '已自动登录，正在同步云端数据...');
-          } else {
-            showAlert('注册成功', '请使用刚才的邮箱和密码登录。');
-          }
+          if (data.session) showAlert('注册成功', '已自动登录，正在同步云端数据...');
+          else showAlert('注册成功', '请使用刚才的邮箱和密码登录。');
         } catch (err) {
           const msg = err.message || String(err);
-          if (msg.includes('already registered') || msg.includes('User already registered')) {
-            showAlert('注册失败', '该邮箱已经注册过了，请直接登录。');
-          } else if (msg.includes('invalid format') || msg.includes('validate email')) {
-            showAlert('提示', '邮箱格式不对，例如 xiaoming@example.com');
-          } else if (msg.includes('Password should be')) {
-            showAlert('提示', '密码太简单或太短，请至少 6 位。');
-          } else {
-            showAlert('注册失败', escapeHtml(msg));
-          }
+          if (msg.includes('already registered') || msg.includes('User already registered')) showAlert('注册失败', '该邮箱已经注册过了，请直接登录。');
+          else if (msg.includes('invalid format') || msg.includes('validate email')) showAlert('提示', '邮箱格式不对，例如 xiaoming@example.com');
+          else if (msg.includes('Password should be')) showAlert('提示', '密码太简单或太短，请至少 6 位。');
+          else showAlert('注册失败', escapeHtml(msg));
         }
       }
-
       loginBtn.addEventListener('click', doLogin);
       regBtn.addEventListener('click', doRegister);
     }
@@ -627,51 +379,181 @@
       const payload = {};
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('bang_')) {
-          payload[key] = localStorage.getItem(key);
-        }
+        if (key && key.startsWith('bang_') && key !== LOCAL_CHANGE_KEY) payload[key] = localStorage.getItem(key);
       }
       return payload;
     }
 
-    async function saveToCloud() {
+    function applyCloudData(cloudData, serverUpdatedAt) {
+      Object.keys(cloudData).forEach(k => {
+        if (k.startsWith('bang_') && k !== LOCAL_CHANGE_KEY) localStorage.setItem(k, cloudData[k]);
+      });
+      const ts = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : Date.now();
+      setLocalChangeNow(ts);
+      cloudLastUpdatedAt = serverUpdatedAt || new Date(ts).toISOString();
+      setCloudStatus('已从云端同步', 'ok');
+      reloadIframes();
+    }
+
+    async function saveToCloud(options) {
+      const silent = options && options.silent;
       if (!cloudReady || !supabaseClient || !currentUser) {
-        showAlert('未登录', '请先登录账号。');
-        return;
+        if (!silent) showAlert('未登录', '请先登录账号。');
+        return false;
       }
       const payload = collectLocalData();
       if (Object.keys(payload).length === 0) {
-        showAlert('提示', '当前没有任何可保存的数据');
-        return;
+        if (!silent) showAlert('提示', '当前没有任何可保存的数据');
+        return false;
       }
       try {
-        setCloudStatus('保存中...', true);
+        setCloudStatus('保存中...', 'ok');
+        const nowIso = new Date().toISOString();
         const { data: existing, error: qErr } = await supabaseClient
-          .from('bang_data')
-          .select('id')
-          .eq('user_id', currentUser.id)
-          .limit(1);
+          .from('bang_data').select('id').eq('user_id', currentUser.id).limit(1);
         if (qErr) throw qErr;
-
         if (existing && existing.length > 0) {
           const { error } = await supabaseClient
-            .from('bang_data')
-            .update({ data: payload, updated_at: new Date().toISOString() })
-            .eq('id', existing[0].id);
+            .from('bang_data').update({ data: payload, updated_at: nowIso }).eq('id', existing[0].id);
           if (error) throw error;
         } else {
           const { error } = await supabaseClient
-            .from('bang_data')
-            .insert({ user_id: currentUser.id, data: payload });
+            .from('bang_data').insert({ user_id: currentUser.id, data: payload, updated_at: nowIso });
           if (error) throw error;
         }
-        setCloudStatus('已保存到云端', true);
-        showAlert('保存成功', '当前数据已保存到云端。');
+        let serverTs = nowIso;
+        try {
+          const { data: rows } = await supabaseClient
+            .from('bang_data').select('updated_at').eq('user_id', currentUser.id).limit(1);
+          if (rows && rows[0] && rows[0].updated_at) serverTs = rows[0].updated_at;
+        } catch(e) {}
+        const tsMs = new Date(serverTs).getTime();
+        setLocalChangeNow(tsMs);
+        cloudLastUpdatedAt = serverTs;
+        setCloudStatus('已保存到云端', 'ok');
+        if (!silent) showAlert('保存成功', '当前数据已保存到云端。');
+        return true;
       } catch (err) {
         console.error(err);
-        setCloudStatus('保存失败', false);
-        showAlert('保存失败', escapeHtml(err.message || String(err)));
+        setCloudStatus('保存失败', 'error');
+        if (!silent) showAlert('保存失败', escapeHtml(err.message || String(err)));
+        return false;
       }
+    }
+
+    async function pullFromCloud(silent) {
+      if (!cloudReady || !supabaseClient || !currentUser) return;
+      if (syncInProgress) return;
+      syncInProgress = true;
+      try {
+        setCloudStatus('正在对比云端数据...', 'ok');
+        const { data, error } = await supabaseClient
+          .from('bang_data').select('data, updated_at').eq('user_id', currentUser.id).limit(1);
+        if (error) throw error;
+        if (!data || data.length === 0 || !data[0].data || Object.keys(data[0].data).length === 0) {
+          cloudLastUpdatedAt = null;
+          setCloudStatus('云端为空，可点「云端保存」上传', 'muted');
+          return;
+        }
+        const cloudData = data[0].data;
+        const cloudUpdatedAt = data[0].updated_at;
+        cloudLastUpdatedAt = cloudUpdatedAt;
+        const cloudTs = cloudUpdatedAt ? new Date(cloudUpdatedAt).getTime() : 0;
+        const localTs = getLocalChangeTs();
+        if (localTs <= 0) { applyCloudData(cloudData, cloudUpdatedAt); return; }
+        if (localTs === cloudTs) { applyCloudData(cloudData, cloudUpdatedAt); return; }
+        showSyncChoice({ cloudTs, localTs, cloudUpdatedAt, cloudData });
+      } catch (err) {
+        console.error(err);
+        setCloudStatus('云端同步失败', 'error');
+      } finally {
+        syncInProgress = false;
+      }
+    }
+
+    function showSyncChoice(ctx) {
+      const { cloudTs, localTs, cloudUpdatedAt, cloudData } = ctx;
+      const localIsNewer = localTs > cloudTs;
+      const cloudLine = `云端最后保存：${formatTs(cloudTs)}${!localIsNewer ? '（最新数据）' : ''}`;
+      const localLine = `本地最后修改：${formatTs(localTs)}${localIsNewer ? '（最新数据）' : ''}`;
+      const html = `${cloudLine}<br>${localLine}<br><br>请选择使用哪一份数据（二选一）：`;
+      showModal({
+        title: '数据版本对比',
+        messageHtml: html,
+        showCancel: false,
+        forceChoose: true,
+        customActions: [
+          { id: 'use-cloud', text: '用云端（覆盖本地）', cls: 'modal-btn-secondary' },
+          { id: 'use-local', text: '用本地（上传）', cls: 'modal-btn-ok' }
+        ],
+        onResult: function(result) {
+          if (!result) return;
+          if (result.action === 'use-cloud') handleUseCloud(ctx);
+          else if (result.action === 'use-local') handleUseLocal(ctx);
+        }
+      }, null, '');
+    }
+
+    function handleUseCloud(ctx) {
+      const { cloudTs, localTs, cloudUpdatedAt, cloudData } = ctx;
+      const localIsNewer = localTs > cloudTs;
+      if (localIsNewer) {
+        confirmSecond({
+          title: '确认使用云端覆盖本地？',
+          line1: '当前本地数据较新',
+          line2: '覆盖后，本地数据将丢失，且不可恢复',
+          cancelText: '取消', okText: '仍用云端',
+          onOk: function() { applyCloudData(cloudData, cloudUpdatedAt); }
+        });
+      } else {
+        confirmSecond({
+          title: '确认使用云端数据？',
+          line1: '当前云端数据较新',
+          line2: '使用该云端数据，本地数据将丢失，且不可恢复',
+          cancelText: '取消', okText: '使用云端',
+          onOk: function() { applyCloudData(cloudData, cloudUpdatedAt); }
+        });
+      }
+    }
+
+    function handleUseLocal(ctx) {
+      const { cloudTs, localTs } = ctx;
+      const localIsNewer = localTs > cloudTs;
+      if (localIsNewer) {
+        doUploadLocal();
+      } else {
+        confirmSecond({
+          title: '确认使用本地覆盖云端？',
+          line1: '当前云端数据较新',
+          line2: '覆盖后，云端数据将丢失，且不可恢复',
+          cancelText: '取消', okText: '仍用本地',
+          onOk: function() { doUploadLocal(); }
+        });
+      }
+    }
+
+    async function doUploadLocal() {
+      const ok = await saveToCloud({ silent: true });
+      if (ok) showAlert('上传成功', '本地数据已上传到云端。');
+      else {
+        setCloudStatus('上传失败，请重试', 'error');
+        showAlert('上传失败', '本地数据未能上传到云端，请稍后重试或点「云端保存」。');
+      }
+    }
+
+    function confirmSecond(opts) {
+      showModal({
+        title: opts.title,
+        messageHtml: `${opts.line1}<br>${opts.line2}`,
+        showCancel: true,
+        forceChoose: false,
+        okText: opts.okText || '确定',
+        cancelText: opts.cancelText || '取消',
+        onResult: function(result) {
+          if (result && result.confirmed) { if (opts.onOk) opts.onOk(); }
+          else setCloudStatus('未同步，下次登录会再次提示', 'warn');
+        }
+      }, null, '');
     }
 
     async function loadFromCloud(silent) {
@@ -680,46 +562,55 @@
         return;
       }
       try {
-        setCloudStatus('读取中...', true);
+        setCloudStatus('读取中...', 'ok');
         const { data, error } = await supabaseClient
-          .from('bang_data')
-          .select('data')
-          .eq('user_id', currentUser.id)
-          .limit(1);
+          .from('bang_data').select('data, updated_at').eq('user_id', currentUser.id).limit(1);
         if (error) throw error;
-
-        if (!data || data.length === 0) {
-          setCloudStatus('云端暂无数据', true);
+        if (!data || data.length === 0 || !data[0].data) {
+          setCloudStatus('云端暂无数据', 'ok');
           if (!silent) showAlert('提示', '云端还没有保存过数据。');
           return;
         }
-
-        const cloudData = data[0].data || {};
-        const keys = Object.keys(cloudData);
-        if (keys.length === 0) {
-          setCloudStatus('云端数据为空', true);
+        const cloudData = data[0].data;
+        const cloudUpdatedAt = data[0].updated_at;
+        if (Object.keys(cloudData).length === 0) {
+          setCloudStatus('云端数据为空', 'ok');
           if (!silent) showAlert('提示', '云端数据为空。');
           return;
         }
-
-        keys.forEach(k => {
-          if (k.startsWith('bang_')) {
-            localStorage.setItem(k, cloudData[k]);
-          }
-        });
-
-        setCloudStatus('已从云端读取', true);
+        applyCloudData(cloudData, cloudUpdatedAt);
+        setCloudStatus('已从云端读取', 'ok');
         if (!silent) {
-          showAlert('读取成功', '云端数据已写入本地，页面将刷新。', function() {
-            location.reload();
-          });
-        } else {
-          reloadIframes();
+          showAlert('读取成功', '云端数据已写入本地，页面将刷新。', function() { location.reload(); });
         }
       } catch (err) {
         console.error(err);
-        setCloudStatus('读取失败', false);
+        setCloudStatus('读取失败', 'error');
         if (!silent) showAlert('读取失败', escapeHtml(err.message || String(err)));
+      }
+    }
+
+    async function handleManualLoad() {
+      if (!cloudReady || !currentUser) { showAlert('未登录', '请先登录账号。'); return; }
+      try {
+        const { data } = await supabaseClient
+          .from('bang_data').select('updated_at').eq('user_id', currentUser.id).limit(1);
+        const cloudTs = (data && data[0] && data[0].updated_at)
+          ? new Date(data[0].updated_at).getTime() : 0;
+        const localTs = getLocalChangeTs();
+        if (localTs > cloudTs && cloudTs > 0) {
+          confirmSecond({
+            title: '确认使用云端覆盖本地？',
+            line1: '当前本地数据较新',
+            line2: '覆盖后，本地数据将丢失，且不可恢复',
+            cancelText: '取消', okText: '仍用云端',
+            onOk: function() { loadFromCloud(false); }
+          });
+        } else {
+          loadFromCloud(false);
+        }
+      } catch (err) {
+        showAlert('读取失败', escapeHtml(err.message || String(err)));
       }
     }
 
@@ -729,38 +620,7 @@
       });
     }
 
-    function pullFromCloud(silent) {
-      return new Promise(resolve => {
-        (async () => {
-          try {
-            if (!cloudReady || !supabaseClient || !currentUser) { resolve(); return; }
-            const { data, error } = await supabaseClient
-              .from('bang_data')
-              .select('data')
-              .eq('user_id', currentUser.id)
-              .limit(1);
-            if (error) throw error;
-            if (data && data.length > 0 && data[0].data) {
-              const cloudData = data[0].data;
-              Object.keys(cloudData).forEach(k => {
-                if (k.startsWith('bang_')) localStorage.setItem(k, cloudData[k]);
-              });
-              setCloudStatus('已从云端同步', true);
-              reloadIframes();
-            } else {
-              setCloudStatus('云端已登录（暂无数据）', true);
-            }
-          } catch (err) {
-            console.error(err);
-            setCloudStatus('云端同步失败', false);
-          } finally {
-            resolve();
-          }
-        })();
-      });
-    }
-
-    // ===== 原有逻辑 =====
+    // ===== 账号管理 =====
     const ACCOUNTS_STORAGE_KEY = 'bang_global_accounts';
     const STORAGE_PREFIX = 'bang_';
 
@@ -779,6 +639,7 @@
     }
     function saveGlobalAccounts(arr) {
       localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(arr));
+      setLocalChangeNow();
     }
     let globalAccounts = loadGlobalAccounts();
 
@@ -797,10 +658,7 @@
     function broadcastAccountsChanged() {
       document.querySelectorAll('.module-card iframe').forEach(iframe => {
         try {
-          iframe.contentWindow.postMessage({
-            type: 'accounts-changed',
-            accounts: globalAccounts
-          }, '*');
+          iframe.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*');
         } catch(e) {}
       });
     }
@@ -825,9 +683,7 @@
         broadcastAccountsChanged();
       }
       inputEl.value = '';
-      if (skipped.length) {
-        showAlert('账号已存在', `以下账号已存在，已跳过：<br>${skipped.map(escapeHtml).join('、')}`);
-      }
+      if (skipped.length) showAlert('账号已存在', `以下账号已存在，已跳过：<br>${skipped.map(escapeHtml).join('、')}`);
     }
 
     function clearGlobalAccounts() {
@@ -892,22 +748,13 @@
 
     function exportAllData() {
       const payload = collectLocalData();
-      if (Object.keys(payload).length === 0) {
-        showAlert('提示', '当前没有任何可导出的数据');
-        return;
-      }
-      const exportObj = {
-        app: '打榜数据录入',
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        data: payload
-      };
-      const json = JSON.stringify(exportObj, null, 2);
-      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+      if (Object.keys(payload).length === 0) { showAlert('提示', '当前没有任何可导出的数据'); return; }
+      const exportObj = { app: '穆祉丞051', version: 1, exportedAt: new Date().toISOString(), data: payload };
+      const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `打榜全部数据_${todayStr()}.json`;
+      a.download = `穆祉丞051_${todayStr()}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -916,23 +763,16 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
-          const text = e.target.result;
-          const parsed = JSON.parse(text);
+          const parsed = JSON.parse(e.target.result);
           if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
             showAlert('导入失败', '文件格式不正确：缺少 data 字段');
             return;
           }
           const dataObj = parsed.data;
           const keys = Object.keys(dataObj);
-          if (keys.length === 0) {
-            showAlert('导入失败', '文件中没有任何数据');
-            return;
-          }
-          const bangKeys = keys.filter(k => k.startsWith(STORAGE_PREFIX));
-          if (bangKeys.length === 0) {
-            showAlert('导入失败', '文件中没有找到本应用的数据（未找到 bang_ 开头的键）');
-            return;
-          }
+          if (keys.length === 0) { showAlert('导入失败', '文件中没有任何数据'); return; }
+          const bangKeys = keys.filter(k => k.startsWith(STORAGE_PREFIX) && k !== LOCAL_CHANGE_KEY);
+          if (bangKeys.length === 0) { showAlert('导入失败', '文件中没有找到本应用的数据（未找到 bang_ 开头的键）'); return; }
           let summary = `将导入 <b>${bangKeys.length}</b> 项数据，覆盖当前设备的对应数据。<br><br>包含：<br>`;
           bangKeys.slice(0, 8).forEach(k => { summary += `- ${escapeHtml(k)}<br>`; });
           if (bangKeys.length > 8) summary += `- ……等共 ${bangKeys.length} 项<br>`;
@@ -943,41 +783,33 @@
               const v = dataObj[k];
               localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
             });
-            showAlert('导入成功', '数据已导入，页面将刷新以加载新数据。', function() {
-              location.reload();
-            });
+            setLocalChangeNow();
+            showAlert('导入成功', '数据已导入，页面将刷新以加载新数据。', function() { location.reload(); });
           });
         } catch (err) {
           console.error(err);
           showAlert('导入失败', '解析失败：' + escapeHtml(err.message));
         }
       };
-      reader.onerror = function() {
-        showAlert('读取失败', '读取文件失败');
-      };
+      reader.onerror = function() { showAlert('读取失败', '读取文件失败'); };
       reader.readAsText(file, 'UTF-8');
     }
 
     function initBackupToolbar() {
-      const exportBtn = document.getElementById('exportAllBtn');
-      const importBtn = document.getElementById('importAllBtn');
-      const fileInput = document.getElementById('importJsonInput');
-      exportBtn.addEventListener('click', exportAllData);
-      importBtn.addEventListener('click', () => {
+      document.getElementById('exportAllBtn').addEventListener('click', exportAllData);
+      document.getElementById('importAllBtn').addEventListener('click', () => {
+        const fileInput = document.getElementById('importJsonInput');
         fileInput.value = '';
         fileInput.click();
       });
-      fileInput.addEventListener('change', function(e) {
+      document.getElementById('importJsonInput').addEventListener('change', function(e) {
         const file = e.target.files && e.target.files[0];
         if (file) importAllData(file);
       });
-      document.getElementById('cloudSaveBtn').addEventListener('click', saveToCloud);
-      document.getElementById('cloudLoadBtn').addEventListener('click', function() {
-        showConfirm('从云端读取', '将用云端数据覆盖当前设备的本地数据，确定吗？', function(ok) {
-          if (!ok) return;
-          loadFromCloud(false);
-        });
+      document.getElementById('cloudSaveBtn').addEventListener('click', function() {
+        saveToCloud({ silent: false });
       });
+      document.getElementById('cloudLoadBtn').addEventListener('click', handleManualLoad);
     }
 
     // ===== 导出 PNG =====
@@ -1002,9 +834,8 @@
           resolve(e.data.dataURL || null);
         }
         window.addEventListener('message', onMsg);
-        try {
-          iframe.contentWindow.postMessage({ type: 'capture' }, '*');
-        } catch(err) {
+        try { iframe.contentWindow.postMessage({ type: 'capture' }, '*'); }
+        catch(err) {
           finished = true;
           clearTimeout(timeout);
           window.removeEventListener('message', onMsg);
@@ -1046,27 +877,20 @@
         const subtitleH = 16 * scale;
         const cardTitleH = 20 * scale;
         const colW = 360 * scale;
-        // 先加载所有图片，按 colW 算每张图的内容高度
         const loadedImgs = [];
         for (let i = 0; i < results.length; i++) {
           const r = results[i];
           if (r.dataURL) {
             try {
               const img = await loadImage(r.dataURL);
-              const drawH = colW * (img.height / img.width);
-              loadedImgs.push({ img, drawH });
-            } catch(e) {
-              loadedImgs.push({ img: null, drawH: 200 * scale });
-            }
+              loadedImgs.push({ img, drawH: colW * (img.height / img.width) });
+            } catch(e) { loadedImgs.push({ img: null, drawH: 200 * scale }); }
           } else {
             loadedImgs.push({ img: null, drawH: 200 * scale });
           }
         }
-
-        // 单列：每张图自己一行
         const rowHeights = loadedImgs.map(item => item.drawH + cardTitleH);
         const rows = rowHeights.length;
-
         const totalW = padding * 2 + colW;
         let totalH = padding * 2 + titleH + subtitleH;
         rowHeights.forEach(h => { totalH += h; });
@@ -1093,7 +917,6 @@
           const r = results[row];
           const x = padding;
           const y = currentY;
-
           ctx.fillStyle = '#fff';
           roundRect(ctx, x, y, colW, rowH, 6 * scale);
           ctx.fill();
@@ -1101,17 +924,14 @@
           ctx.lineWidth = 1 * scale;
           roundRect(ctx, x, y, colW, rowH, 6 * scale);
           ctx.stroke();
-
           ctx.fillStyle = '#ea3690';
           roundRectTop(ctx, x, y, colW, cardTitleH, 6 * scale);
           ctx.fill();
-
           ctx.fillStyle = '#fff';
           ctx.font = `bold ${8 * scale}px system-ui, sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(r.title, x + colW / 2, y + cardTitleH / 2);
-
           if (r.dataURL) {
             try {
               const img = await loadImage(r.dataURL);
@@ -1120,12 +940,8 @@
               const imgRatio = img.width / img.height;
               const boxRatio = colW / contentH;
               let drawW, drawH, drawX, drawY;
-              if (imgRatio > boxRatio) {
-                drawW = colW; drawH = colW / imgRatio; drawX = x; drawY = contentY;
-              } else {
-                drawH = contentH; drawW = contentH * imgRatio;
-                drawX = x + (colW - drawW) / 2; drawY = contentY;
-              }
+              if (imgRatio > boxRatio) { drawW = colW; drawH = colW / imgRatio; drawX = x; drawY = contentY; }
+              else { drawH = contentH; drawW = contentH * imgRatio; drawX = x + (colW - drawW) / 2; drawY = contentY; }
               ctx.drawImage(img, drawX, drawY, drawW, drawH);
             } catch(err) {}
           } else {
@@ -1135,10 +951,9 @@
             ctx.textBaseline = 'middle';
             ctx.fillText('（无法获取截图）', x + colW / 2, y + cardTitleH + (rowH - cardTitleH) / 2);
           }
-
           currentY += rowH + gap;
         }
-        // 在 canvas 上平铺水印
+
         const wmText = 'mzc051';
         const wmFontSize = 28 * scale;
         ctx.save();
@@ -1158,9 +973,8 @@
           }
         }
         ctx.restore();
-        const url = canvas.toDataURL('image/png');
         const a = document.createElement('a');
-        a.href = url;
+        a.href = canvas.toDataURL('image/png');
         a.download = `打榜截图_${todayStr()}.png`;
         a.click();
         showAlert('导出成功', 'PNG 已生成，账号已统一打码为 ***。');
@@ -1198,7 +1012,6 @@
         img.src = src;
       });
     }
-
     function roundRect(ctx, x, y, w, h, r) {
       ctx.beginPath();
       ctx.moveTo(x + r, y);
@@ -1236,7 +1049,6 @@
       const moduleName = IFRAME_MODULE_MAP[title] || title;
       MODULE_IFRAME_MAP[moduleName] = iframe;
     });
-
     const moduleHeights = {};
 
     function applyUniformHeight() {
@@ -1263,51 +1075,72 @@
       const showInput = payload.showInput === true;
       const okText = payload.okText || '确定';
       const cancelText = payload.cancelText || '取消';
+      const forceChoose = payload.forceChoose === true;
+      const customActions = Array.isArray(payload.customActions) ? payload.customActions : null;
+
+      let actionsHtml = '';
+      if (customActions) {
+        actionsHtml = customActions.map(a =>
+          `<button class="${a.cls || 'modal-btn-ok'}" data-action="${escapeHtml(a.id)}">${escapeHtml(a.text)}</button>`
+        ).join('');
+      } else {
+        actionsHtml = `${payload.showCancel === false ? '' : `<button class="modal-btn-cancel">${escapeHtml(cancelText)}</button>`}
+          <button class="modal-btn-ok">${escapeHtml(okText)}</button>`;
+      }
+
       overlay.innerHTML = `
         <div class="modal-box">
           <div class="modal-title">${escapeHtml(title)}</div>
           <div class="modal-body">
             ${messageHtml ? `<div class="modal-message">${messageHtml}</div>` : ''}
             ${showInput ? `<input class="modal-input" type="text" inputmode="numeric" placeholder="${escapeHtml(payload.placeholder || '')}" value="${escapeHtml(payload.defaultValue || '')}">` : ''}
-            <div class="modal-actions">
-              ${payload.showCancel === false ? '' : `<button class="modal-btn-cancel">${escapeHtml(cancelText)}</button>`}
-              <button class="modal-btn-ok">${escapeHtml(okText)}</button>
-            </div>
+            <div class="modal-actions">${actionsHtml}</div>
           </div>
         </div>
       `;
       document.body.appendChild(overlay);
       const input = overlay.querySelector('.modal-input');
-      const btnOk = overlay.querySelector('.modal-btn-ok');
-      const btnCancel = overlay.querySelector('.modal-btn-cancel');
       if (input) setTimeout(() => { input.focus(); input.select(); }, 50);
+
       function finish(result) {
         const pm = pendingModal;
         pendingModal = null;
         overlay.remove();
         document.removeEventListener('keydown', onKey);
         if (pm && pm.source) {
-          try {
-            pm.source.postMessage({ type: 'modal-result', requestId: pm.requestId, value: result }, '*');
-          } catch(e) {}
+          try { pm.source.postMessage({ type: 'modal-result', requestId: pm.requestId, value: result }, '*'); } catch(e) {}
         } else if (payload.onResult) {
           payload.onResult(result);
         }
       }
       function confirm() {
         const val = input ? input.value : '';
-        finish({ confirmed: true, value: val });
+        finish({ confirmed: true, value: val, action: 'ok' });
       }
       function cancel() {
-        finish({ confirmed: false, value: null });
+        if (forceChoose) return;
+        finish({ confirmed: false, value: null, action: 'cancel' });
       }
-      btnOk.addEventListener('click', confirm);
-      if (btnCancel) btnCancel.addEventListener('click', cancel);
+
+      overlay.querySelectorAll('.modal-actions button').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const action = this.dataset.action;
+          if (action) {
+            const val = input ? input.value : '';
+            finish({ confirmed: true, value: val, action: action });
+          } else if (this.classList.contains('modal-btn-ok')) {
+            confirm();
+          } else {
+            cancel();
+          }
+        });
+      });
+
       overlay.addEventListener('click', function(e){
-        if (e.target === overlay) cancel();
+        if (e.target === overlay && !forceChoose) cancel();
       });
       function onKey(e) {
-        if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+        if (e.key === 'Escape') { e.preventDefault(); if (!forceChoose) cancel(); }
         else if (e.key === 'Enter') { e.preventDefault(); confirm(); }
       }
       document.addEventListener('keydown', onKey);
@@ -1319,34 +1152,22 @@
       const pm = pendingModal;
       pendingModal = null;
       if (pm && notify && pm.source) {
-        try {
-          pm.source.postMessage({ type: 'modal-result', requestId: pm.requestId, value: result }, '*');
-        } catch(e) {}
+        try { pm.source.postMessage({ type: 'modal-result', requestId: pm.requestId, value: result }, '*'); } catch(e) {}
       }
     }
 
     function showAlert(title, messageHtml, onClose) {
       showModal({
-        title: title,
-        messageHtml: messageHtml,
-        showInput: false,
-        showCancel: false,
+        title: title, messageHtml: messageHtml, showInput: false, showCancel: false,
         okText: '知道了',
         onResult: function() { if (onClose) onClose(); }
       }, null, '');
     }
-
     function showConfirm(title, messageHtml, onResult) {
       showModal({
-        title: title,
-        messageHtml: messageHtml,
-        showInput: false,
-        showCancel: true,
-        okText: '确定',
-        cancelText: '取消',
-        onResult: function(result) {
-          if (onResult) onResult(!!(result && result.confirmed));
-        }
+        title: title, messageHtml: messageHtml, showInput: false, showCancel: true,
+        okText: '确定', cancelText: '取消',
+        onResult: function(result) { if (onResult) onResult(!!(result && result.confirmed)); }
       }, null, '');
     }
 
@@ -1380,6 +1201,11 @@
         if (!moduleName || h <= 0) return;
         moduleHeights[moduleName] = h;
         applyUniformHeight();
+        return;
+      }
+      if (e.data.type === 'dirty') {
+        setLocalChangeNow();
+        return;
       }
     });
 
@@ -1387,10 +1213,8 @@
       try {
         const doc = iframe.contentWindow.document;
         const h = Math.max(
-          doc.body.scrollHeight,
-          doc.documentElement.scrollHeight,
-          doc.body.offsetHeight,
-          doc.documentElement.offsetHeight
+          doc.body.scrollHeight, doc.documentElement.scrollHeight,
+          doc.body.offsetHeight, doc.documentElement.offsetHeight
         );
         if (h > 0) {
           moduleHeights[moduleName] = h;
@@ -1403,9 +1227,7 @@
       const title = iframe.getAttribute('title');
       const moduleName = IFRAME_MODULE_MAP[title] || title;
       iframe.addEventListener('load', function() {
-        try {
-          this.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*');
-        } catch(e) {}
+        try { this.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*'); } catch(e) {}
         syncIframeHeightFromDoc(this, moduleName);
         setTimeout(() => syncIframeHeightFromDoc(this, moduleName), 300);
       });

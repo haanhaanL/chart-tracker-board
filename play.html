@@ -7,35 +7,19 @@
 <link rel="stylesheet" href="common.css">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
-  .stats-row.single {
-    grid-template-columns: 1fr;
-  }
-
+  .stats-row.single { grid-template-columns: 1fr; }
   .play-check {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    border: 2px solid #f0d6e4;
-    background: white;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.15s;
-    font-size: 14px;
-    color: transparent;
-    font-weight: bold;
-    user-select: none;
+    width: 22px; height: 22px; border-radius: 6px; border: 2px solid #f0d6e4; background: white;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    transition: 0.15s; font-size: 14px; color: transparent; font-weight: bold; user-select: none;
   }
   .play-check:hover { border-color: #f97316; }
   .play-check.checked { background: #f97316; border-color: #f97316; color: #fff; }
-
   .del-btn {
-    width: 24px; height: 24px; border-radius: 50%;
-    border: 1px solid rgba(231,76,60,0.35);
-    background: white; color: #e74c3c; font-size: 14px; line-height: 1;
-    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-    transition: 0.15s; font-family: inherit; padding: 0;
+    width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(231,76,60,0.35);
+    background: white; color: #e74c3c; font-size: 14px; line-height: 1; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;
+    font-family: inherit; padding: 0;
   }
   .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #e74c3c; }
 </style>
@@ -58,29 +42,32 @@
 
   let ACCOUNTS = [];
   let data = {};
+  let dailyDate = '';
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   function normalizeName(name) { return String(name).trim().replace(/\s+/g, ' '); }
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
 
   function notifyResize() {
     if (window.parent && window.parent !== window) {
       try {
-        window.parent.postMessage({
-          type: 'resize',
-          module: 'play',
-          height: document.body.scrollHeight
-        }, '*');
+        window.parent.postMessage({ type: 'resize', module: 'play', height: document.body.scrollHeight }, '*');
       } catch(e) {}
     }
   }
-
+  function notifyDirty() {
+    if (window.parent && window.parent !== window) {
+      try { window.parent.postMessage({ type: 'dirty' }, '*'); } catch(e) {}
+    }
+  }
   function requestDeleteAccount(name) {
     if (window.parent && window.parent !== window) {
-      try {
-        window.parent.postMessage({ type: 'delete-account', account: name }, '*');
-      } catch(e) {}
+      try { window.parent.postMessage({ type: 'delete-account', account: name }, '*'); } catch(e) {}
     }
   }
 
@@ -89,13 +76,40 @@
       const raw = localStorage.getItem(DATA_STORAGE_KEY);
       if (raw) {
         const obj = JSON.parse(raw);
-        if (obj && typeof obj === 'object') return obj;
+        if (obj && typeof obj === 'object') {
+          if (obj.data && typeof obj.data === 'object') {
+            return { data: obj.data, dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : '' };
+          }
+          return { data: obj, dailyDate: todayStr() };
+        }
       }
     } catch(e) {}
-    return {};
+    return { data: {}, dailyDate: '' };
   }
   function saveData() {
-    localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify({ data, dailyDate }));
+  }
+
+  function checkDailyReset() {
+    const today = todayStr();
+    if (dailyDate === today) return false;
+    ACCOUNTS.forEach(a => {
+      if (!data[a]) data[a] = {};
+      PLATFORMS.forEach(p => { data[a][p] = false; });
+    });
+    dailyDate = today;
+    saveData();
+    notifyDirty();
+    return true;
+  }
+
+  function clearDailyChecksDom() {
+    document.querySelectorAll('.play-check').forEach(el => {
+      el.classList.remove('checked');
+      el.textContent = '';
+    });
+    updateStats();
+    notifyResize();
   }
 
   function syncDataWithAccounts() {
@@ -105,12 +119,9 @@
       if (!normalized[nk]) normalized[nk] = data[k];
     });
     data = normalized;
-
     ACCOUNTS.forEach(a => {
       if (!data[a]) data[a] = {};
-      PLATFORMS.forEach(p => {
-        if (typeof data[a][p] !== 'boolean') data[a][p] = false;
-      });
+      PLATFORMS.forEach(p => { if (typeof data[a][p] !== 'boolean') data[a][p] = false; });
     });
     Object.keys(data).forEach(a => { if (!ACCOUNTS.includes(a)) delete data[a]; });
     ACCOUNTS = [...new Set(ACCOUNTS)];
@@ -128,9 +139,7 @@
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${idx + 1}. ${escapeHtml(a)}</span></td>
           ${PLATFORMS.map(p => {
             const checked = !!rec[p];
-            return `<td>
-              <div class="play-check ${checked ? 'checked' : ''}" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" title="${checked ? '点击取消' : '点击标记完成'}">${checked ? '✓' : ''}</div>
-            </td>`;
+            return `<td><div class="play-check ${checked ? 'checked' : ''}" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" title="${checked ? '点击取消' : '点击标记完成'}">${checked ? '✓' : ''}</div></td>`;
           }).join('')}
           <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
         </tr>`;
@@ -141,11 +150,7 @@
 
     box.innerHTML = `<table>
       <colgroup>
-        <col style="width:88px">
-        <col style="width:auto">
-        <col style="width:auto">
-        <col style="width:auto">
-        <col style="width:36px">
+        <col style="width:88px"><col style="width:auto"><col style="width:auto"><col style="width:auto"><col style="width:36px">
       </colgroup>
       <thead><tr>
         <th style="text-align:left;padding-left:6px;">账号</th>
@@ -155,21 +160,15 @@
       <tbody>${rows}</tbody>
       <tfoot><tr>
         <td class="account-cell" style="color:#ea3690;">合计</td>
-        ${footCells}
-        <td></td>
+        ${footCells}<td></td>
       </tr></tfoot>
     </table>`;
 
     box.querySelectorAll('.play-check').forEach(el => {
-      el.addEventListener('click', function(){
-        toggleCheck(this.dataset.acc, this.dataset.pf);
-      });
+      el.addEventListener('click', function(){ toggleCheck(this.dataset.acc, this.dataset.pf); });
     });
-
     box.querySelectorAll('.del-btn').forEach(btn => {
-      btn.addEventListener('click', function(){
-        requestDeleteAccount(this.dataset.acc);
-      });
+      btn.addEventListener('click', function(){ requestDeleteAccount(this.dataset.acc); });
     });
 
     updateStats();
@@ -179,8 +178,16 @@
   function toggleCheck(acc, pf) {
     if (!data[acc]) data[acc] = {};
     data[acc][pf] = !data[acc][pf];
+    if (dailyDate !== todayStr()) dailyDate = todayStr();
     saveData();
-    renderAll();
+    notifyDirty();
+    const el = document.querySelector(`.play-check[data-acc="${CSS.escape(acc)}"][data-pf="${CSS.escape(pf)}"]`);
+    if (el) {
+      el.classList.toggle('checked', data[acc][pf]);
+      el.textContent = data[acc][pf] ? '✓' : '';
+    }
+    updateStats();
+    notifyResize();
   }
 
   function updateStats() {
@@ -190,20 +197,14 @@
       PLATFORMS.forEach(p => { if (rec[p]) done++; });
     });
     const total = ACCOUNTS.length * PLATFORMS.length;
-
     const el = document.getElementById('totalDone');
     if (el) el.textContent = `${done} / ${total}`;
-
-    // 表尾各平台完成数
     PLATFORMS.forEach((pf, idx) => {
       let c = 0;
-      ACCOUNTS.forEach(a => {
-        if (data[a] && data[a][pf]) c++;
-      });
+      ACCOUNTS.forEach(a => { if (data[a] && data[a][pf]) c++; });
       const foot = document.getElementById(`pct-${idx}`);
       if (foot) foot.textContent = `${c} / ${ACCOUNTS.length}`;
     });
-
     notifyResize();
   }
 
@@ -219,7 +220,9 @@
       if (!data[a]) data[a] = {};
       PLATFORMS.forEach(p => { data[a][p] = false; });
     });
+    dailyDate = todayStr();
     saveData();
+    notifyDirty();
     renderAll();
   }
 
@@ -227,13 +230,20 @@
     if (!e.data || e.data.type !== 'accounts-changed') return;
     const incoming = Array.isArray(e.data.accounts) ? e.data.accounts : [];
     ACCOUNTS = incoming.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
-    data = loadData();
+    const loaded = loadData();
+    data = loaded.data;
+    dailyDate = loaded.dailyDate;
     syncDataWithAccounts();
-    saveData();
-    renderAll();
+    if (checkDailyReset()) {
+      saveData();
+      renderAll();
+      clearDailyChecksDom();
+    } else {
+      saveData();
+      renderAll();
+    }
   });
 
-  // ===== 截图响应（账号打码 ***） =====
   window.addEventListener('message', async function(e) {
     if (!e.data || e.data.type !== 'capture') return;
     try {
@@ -243,43 +253,27 @@
         window.parent.postMessage({ type: 'capture-result', dataURL: null }, '*');
         return;
       }
-
-      // 克隆统计卡片
       const statsClone = statsRow.cloneNode(true);
-
-      // 克隆表格
       const tableClone = tableBox.cloneNode(true);
-      // 删除操作列（每行最后一个 td / th）
       tableClone.querySelectorAll('tr').forEach(tr => {
         const cells = tr.children;
-        if (cells.length > 0) {
-          tr.removeChild(cells[cells.length - 1]);
-        }
+        if (cells.length > 0) tr.removeChild(cells[cells.length - 1]);
       });
-
-      // 同步删除 colgroup 里操作列对应的 col
       const colgroup = tableClone.querySelector('colgroup');
       if (colgroup) {
         const cols = colgroup.querySelectorAll('col');
-        if (cols.length > 0) {
-          colgroup.removeChild(cols[cols.length - 1]);
-        }
+        if (cols.length > 0) colgroup.removeChild(cols[cols.length - 1]);
       }
       tableClone.querySelectorAll('tbody tr').forEach((tr, idx) => {
         const accountText = tr.querySelector('.account-text');
         if (accountText) accountText.textContent = `${idx + 1}.***`;
       });
-      tableClone.querySelectorAll('.account-cell').forEach(el => {
-        el.removeAttribute('title');
-      });
-      tableClone.querySelectorAll('[data-acc]').forEach(el => {
-        el.setAttribute('data-acc', '***');
-      });
+      tableClone.querySelectorAll('.account-cell').forEach(el => el.removeAttribute('title'));
+      tableClone.querySelectorAll('[data-acc]').forEach(el => el.setAttribute('data-acc', '***'));
       tableClone.scrollLeft = 0;
       tableClone.style.maxHeight = 'none';
       tableClone.style.overflowY = 'visible';
 
-      // 临时容器：宽度至少 800，保证移动端也能完整渲染
       const wrapper = document.createElement('div');
       wrapper.style.background = '#fff';
       wrapper.style.padding = '8px';
@@ -288,7 +282,6 @@
       wrapper.style.left = '-99999px';
       wrapper.style.top = '0';
       wrapper.style.zIndex = '-1';
-      // 截图时放大字号
       const styleOverride = document.createElement('style');
       styleOverride.textContent = `
         .capture-mode table { font-size: 14px !important; }
@@ -299,23 +292,13 @@
       wrapper.appendChild(statsClone);
       wrapper.appendChild(tableClone);
       document.body.appendChild(wrapper);
-
-      // 等一帧让布局稳定
       await new Promise(r => setTimeout(r, 50));
-
       const canvas = await html2canvas(wrapper, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        width: wrapper.scrollWidth,
-        height: wrapper.scrollHeight
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false,
+        width: wrapper.scrollWidth, height: wrapper.scrollHeight
       });
-
       document.body.removeChild(wrapper);
-
-      const dataURL = canvas.toDataURL('image/png');
-      window.parent.postMessage({ type: 'capture-result', dataURL: dataURL }, '*');
+      window.parent.postMessage({ type: 'capture-result', dataURL: canvas.toDataURL('image/png') }, '*');
     } catch(err) {
       console.error('capture failed', err);
       window.parent.postMessage({ type: 'capture-result', dataURL: null }, '*');
@@ -323,10 +306,21 @@
   });
 
   function init() {
-    data = loadData();
-    renderAll();
-
+    const loaded = loadData();
+    data = loaded.data;
+    dailyDate = loaded.dailyDate;
+    syncDataWithAccounts();
+    if (checkDailyReset()) {
+      renderAll();
+      clearDailyChecksDom();
+    } else {
+      renderAll();
+    }
     document.getElementById('clearDataBtn').addEventListener('click', clearData);
+    setInterval(() => { if (checkDailyReset()) clearDailyChecksDom(); }, 60 * 1000);
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) { if (checkDailyReset()) clearDailyChecksDom(); }
+    });
   }
   init();
 })();
