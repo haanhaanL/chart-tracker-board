@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>打榜数据录入 · 汇总</title>
 <link rel="stylesheet" href="common.css">
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   body {
     display: block;
@@ -173,6 +174,11 @@
     .module-card.active {
       display: flex;
     }
+    /* 截图时强制显示所有卡片 */
+    .module-card.force-show {
+      display: flex !important;
+      margin-bottom: 8px;
+    }
     h1 { font-size: 16px; margin: 16px 0 8px; }
     .subtitle { margin-bottom: 10px; }
     .global-toolbar input.new-account { flex-basis: 100%; }
@@ -182,7 +188,7 @@
 
   #importJsonInput { display: none; }
 
-  /* ===== 统一弹窗（标题无背景色、粉色文字） ===== */
+  /* ===== 统一弹窗 ===== */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -291,8 +297,8 @@
 </style>
 </head>
 <body>
-  <h1>打榜数据录入</h1>
-  <div class="subtitle">账号统一管理 · 多模块独立数据</div>
+  <h1 id="exportTitle">打榜数据录入</h1>
+  <div class="subtitle" id="exportSubtitle">账号统一管理 · 多模块独立数据</div>
 
   <div class="global-toolbar">
     <span class="label">统一账号</span>
@@ -300,6 +306,7 @@
            placeholder="输入账号名，逗号或空格分隔可一次新增多个，按回车确认">
     <button id="globalAddBtn">新增</button>
     <button id="globalClearAccountsBtn" class="danger">清空账号</button>
+    <button id="exportPngBtn">导出 PNG</button>
     <span class="count">当前账号：<b id="globalAccountCount">0</b> 个</span>
   </div>
 
@@ -318,7 +325,7 @@
     <button class="module-tab-btn" data-module="play">刷播</button>
   </div>
 
-  <div class="module-grid">
+  <div class="module-grid" id="moduleGrid">
     <div class="module-card active" data-module="power">
       <div class="module-title">电力（每 4 小时一轮）</div>
       <iframe src="power.html" title="电力"></iframe>
@@ -432,6 +439,7 @@
         setTimeout(() => { if (el.value.trim()) addGlobalAccounts(el); }, 100);
       });
       clearBtn.addEventListener('click', clearGlobalAccounts);
+      document.getElementById('exportPngBtn').addEventListener('click', exportPageAsPng);
     }
 
     function initModuleTabs() {
@@ -561,6 +569,237 @@
       });
     }
 
+    // ===== 导出 PNG =====
+    const MODULE_TITLES = {
+      power: '电力（每 4 小时一轮）',
+      youni: '由你积分',
+      coin: '金币',
+      play: '刷播'
+    };
+
+    function requestModuleCapture(iframe) {
+      return new Promise((resolve) => {
+        let finished = false;
+        const timeout = setTimeout(() => {
+          if (!finished) { finished = true; resolve(null); }
+        }, 8000);
+
+        function onMsg(e) {
+          if (!e.data || e.data.type !== 'capture-result') return;
+          finished = true;
+          clearTimeout(timeout);
+          window.removeEventListener('message', onMsg);
+          resolve(e.data.dataURL || null);
+        }
+        window.addEventListener('message', onMsg);
+
+        try {
+          iframe.contentWindow.postMessage({ type: 'capture' }, '*');
+        } catch(err) {
+          finished = true;
+          clearTimeout(timeout);
+          window.removeEventListener('message', onMsg);
+          resolve(null);
+        }
+      });
+    }
+
+    async function exportPageAsPng() {
+      const btn = document.getElementById('exportPngBtn');
+      btn.disabled = true;
+      btn.textContent = '生成中...';
+
+      const grid = document.getElementById('moduleGrid');
+      const isMobile = window.matchMedia('(max-width: 900px)').matches;
+      let prevActiveModule = null;
+
+      if (isMobile) {
+        const activeCard = document.querySelector('.module-card.active');
+        if (activeCard) prevActiveModule = activeCard.dataset.module;
+        // 临时显示所有卡片
+        grid.querySelectorAll('.module-card').forEach(c => {
+          c.classList.add('force-show');
+        });
+        // 等布局稳定
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      try {
+        const title = document.getElementById('exportTitle').textContent;
+        const subtitle = document.getElementById('exportSubtitle').textContent;
+        const cards = document.querySelectorAll('.module-card');
+        const results = [];
+
+        for (let i = 0; i < cards.length; i++) {
+          const card = cards[i];
+          const mod = card.dataset.module;
+          const iframe = card.querySelector('iframe');
+          let dataURL = null;
+          if (iframe) {
+            dataURL = await requestModuleCapture(iframe);
+          }
+          results.push({ mod, title: MODULE_TITLES[mod] || mod, dataURL });
+        }
+
+        // 拼图
+        const scale = 2;
+        const gap = 24 * scale;
+        const padding = 32 * scale;
+        const titleH = 60 * scale;
+        const subtitleH = 32 * scale;
+        const cardTitleH = 36 * scale;
+        const colW = 720 * scale;
+        const rowH = 420 * scale + cardTitleH;
+        const cols = 2;
+        const rows = Math.ceil(results.length / cols);
+
+        const totalW = padding * 2 + colW * cols + gap * (cols - 1);
+        const totalH = padding * 2 + titleH + subtitleH + rowH * rows + gap * (rows - 1);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = totalW;
+        canvas.height = totalH;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#faf7f9';
+        ctx.fillRect(0, 0, totalW, totalH);
+
+        ctx.fillStyle = '#ea3690';
+        ctx.font = `bold ${18 * scale}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(title, totalW / 2, padding);
+
+        ctx.fillStyle = '#999';
+        ctx.font = `${12 * scale}px system-ui, sans-serif`;
+        ctx.fillText(subtitle, totalW / 2, padding + titleH);
+
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const x = padding + col * (colW + gap);
+          const y = padding + titleH + subtitleH + row * (rowH + gap);
+
+          ctx.fillStyle = '#fff';
+          roundRect(ctx, x, y, colW, rowH, 10 * scale);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(234,54,144,0.15)';
+          ctx.lineWidth = 1 * scale;
+          roundRect(ctx, x, y, colW, rowH, 10 * scale);
+          ctx.stroke();
+
+          ctx.fillStyle = '#ea3690';
+          roundRectTop(ctx, x, y, colW, cardTitleH, 10 * scale);
+          ctx.fill();
+
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold ${13 * scale}px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(r.title, x + colW / 2, y + cardTitleH / 2);
+
+          if (r.dataURL) {
+            try {
+              const img = await loadImage(r.dataURL);
+              const contentY = y + cardTitleH;
+              const contentH = rowH - cardTitleH;
+              const imgRatio = img.width / img.height;
+              const boxRatio = colW / contentH;
+              let drawW, drawH, drawX, drawY;
+              if (imgRatio > boxRatio) {
+                drawW = colW;
+                drawH = colW / imgRatio;
+                drawX = x;
+                drawY = contentY;
+              } else {
+                drawH = contentH;
+                drawW = contentH * imgRatio;
+                drawX = x + (colW - drawW) / 2;
+                drawY = contentY;
+              }
+              ctx.drawImage(img, drawX, drawY, drawW, drawH);
+            } catch(err) {}
+          } else {
+            ctx.fillStyle = '#bbb';
+            ctx.font = `${12 * scale}px system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('（无法获取截图）', x + colW / 2, y + cardTitleH + (rowH - cardTitleH) / 2);
+          }
+        }
+
+        const url = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `打榜截图_${todayStr()}.png`;
+        a.click();
+
+        showAlert('导出成功', 'PNG 已生成，账号已统一打码为 ***。');
+      } catch(err) {
+        console.error(err);
+        showAlert('导出失败', escapeHtml(err.message || String(err)));
+      } finally {
+        if (isMobile) {
+          grid.querySelectorAll('.module-card').forEach(c => {
+            c.classList.remove('force-show');
+          });
+          // 恢复之前的 active
+          const cards = document.querySelectorAll('.module-card');
+          cards.forEach(c => c.classList.remove('active'));
+          const restore = document.querySelector(`.module-card[data-module="${prevActiveModule || 'power'}"]`);
+          if (restore) restore.classList.add('active');
+          // 重新广播
+          setTimeout(() => {
+            cards.forEach(c => {
+              if (c.classList.contains('active')) {
+                const iframe = c.querySelector('iframe');
+                if (iframe) {
+                  try { iframe.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*'); } catch(e) {}
+                }
+              }
+            });
+          }, 50);
+        }
+        btn.disabled = false;
+        btn.textContent = '导出 PNG';
+      }
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+    function roundRectTop(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
     const IFRAME_MODULE_MAP = {
       '电力（每 4 小时一轮）': 'power',
       '由你积分': 'youni',
@@ -586,7 +825,7 @@
       });
     }
 
-    // ===== 统一弹窗接口 =====
+    // ===== 统一弹窗 =====
     let pendingModal = null;
 
     function showModal(payload, sourceWindow, requestId) {
@@ -681,7 +920,6 @@
       }
     }
 
-    // 父页面自己用的 alert / confirm
     function showAlert(title, messageHtml, onClose) {
       showModal({
         title: title,
@@ -702,7 +940,6 @@
         okText: '确定',
         cancelText: '取消',
         onResult: function(result) {
-          // 关键修复：把 {confirmed, value} 转成布尔值再传给业务回调
           if (onResult) onResult(!!(result && result.confirmed));
         }
       }, null, '');

@@ -69,20 +69,27 @@ body {
 .toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
 .toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
 
-/* ===== 表格容器：创建独立层叠上下文 ===== */
+/* ===== 表格容器：横向 + 纵向滚动，高度受限 ===== */
 .table-box {
+  --row-h: 42px;       /* 每行数据高度 */
+  --rows: 10;          /* 显示多少行 */
+  --head-h: 32px;      /* 表头高度（含 padding 和边框的保守值） */
+  --foot-h: 44px;      /* 表尾高度（含边框的保守值） */
+  --extra: 8px;        /* 额外余量，防止差 1–2px 截断 */
+  max-height: calc(var(--head-h) + var(--foot-h) + var(--row-h) * var(--rows) + var(--extra));
+  /* 其余属性不变 */
   background: white;
   border-radius: 8px;
   padding: 4px;
   border: 1px solid #f3e6ee;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   position: relative;
   isolation: isolate;
 }
 
-/* ===== 表格通用：auto 布局，中间列按内容自适应 ===== */
+/* ===== 表格通用 ===== */
 table {
   width: 100%;
   border-collapse: separate;
@@ -92,7 +99,7 @@ table {
   table-layout: auto;
 }
 
-/* 普通表头 */
+/* 普通表头：固定在 table-box 顶部 */
 thead th {
   background: #ea3690;
   color: #fff;
@@ -108,7 +115,7 @@ thead th {
   min-width: 60px;
 }
 
-/* 表头账号列：88px，最高层级 */
+/* 表头账号列：固定在左上角，层级最高 */
 thead th:first-child {
   border-top-left-radius: 6px;
   position: sticky;
@@ -147,6 +154,7 @@ tbody td {
 }
 tbody tr:nth-child(even) td { background: #fdf7fa; }
 
+/* ===== 表尾合计：固定在 table-box 底部 ===== */
 tfoot tr {
   height: 42px;
 }
@@ -156,9 +164,36 @@ tfoot td {
   padding: 0 4px;
   vertical-align: middle;
   font-weight: bold;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  min-width: 60px;
 }
 
-/* 账号列 td：88px，最高层级 */
+/* 账号列合计：固定在左下角，层级最高 */
+tfoot td:first-child {
+  position: sticky;
+  left: 0;
+  bottom: 0;
+  z-index: 998;          /* 高于 tfoot td 的 5，高于账号列 td 的 998？用 998 和账号列同级，但 bottom 固定在下方 */
+  background: #fdf7fa;
+  border-right: 1px solid #f3e6ee;
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  box-sizing: border-box;
+  text-align: left;
+  padding-left: 6px;
+}
+
+/* 操作列合计：保持 36px，不被 min-width 撑开 */
+tfoot td:last-child {
+  min-width: 36px;
+  width: 36px;
+  max-width: 36px;
+}
+
+/* 账号列 td：固定在左侧，88px */
 .account-cell {
   text-align: left !important;
   font-weight: bold;
@@ -250,5 +285,6 @@ input.score::placeholder { color: #ccc; font-weight: normal; text-align: center;
   .stats-row { gap: 5px; }
   .stat-card .s-value { font-size: 15px; }
   .toolbar button { min-width: 64px; font-size: 11px; padding: 6px 4px; }
+  .table-box { --rows: 10; }
   table { min-width: 640px; }
 }
