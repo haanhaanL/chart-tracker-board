@@ -819,8 +819,9 @@
 
       // 克隆表格
       const tableClone = tableBox.cloneNode(true);
-      tableClone.querySelectorAll('.account-text').forEach(el => {
-        el.textContent = '***';
+      tableClone.querySelectorAll('tbody tr').forEach((tr, idx) => {
+        const accountText = tr.querySelector('.account-text');
+        if (accountText) accountText.textContent = `${idx + 1}.***`;
       });
       tableClone.querySelectorAll('.account-cell').forEach(el => {
         el.removeAttribute('title');
@@ -829,6 +830,8 @@
         el.setAttribute('data-acc', '***');
       });
       tableClone.scrollLeft = 0;
+      tableClone.style.maxHeight = 'none';
+      tableClone.style.overflowY = 'visible';
 
       // 临时容器：宽度至少 800，保证移动端也能完整渲染
       const wrapper = document.createElement('div');
