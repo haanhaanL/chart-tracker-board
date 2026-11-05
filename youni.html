@@ -218,9 +218,9 @@
     if (ACCOUNTS.length === 0) {
       rows = `<tr class="empty-row"><td colspan="${PLATFORMS.length + 2}">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
     } else {
-      rows = ACCOUNTS.map((a) => `
+      rows = ACCOUNTS.map((a, idx) => `
         <tr data-acc="${escapeHtml(a)}">
-          <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${escapeHtml(a)}</span></td>
+          <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${idx + 1}. ${escapeHtml(a)}</span></td>
           ${PLATFORMS.map(p => {
             const val = (data[a] && data[a][p]) ? data[a][p] : '';
             const isDone = !!(daily[a] && daily[a][p]);
@@ -394,6 +394,22 @@
 
       // 克隆表格
       const tableClone = tableBox.cloneNode(true);
+      // 删除操作列（每行最后一个 td / th）
+      tableClone.querySelectorAll('tr').forEach(tr => {
+        const cells = tr.children;
+        if (cells.length > 0) {
+          tr.removeChild(cells[cells.length - 1]);
+        }
+      });
+
+      // 同步删除 colgroup 里操作列对应的 col
+      const colgroup = tableClone.querySelector('colgroup');
+      if (colgroup) {
+        const cols = colgroup.querySelectorAll('col');
+        if (cols.length > 0) {
+          colgroup.removeChild(cols[cols.length - 1]);
+        }
+      }
       tableClone.querySelectorAll('tbody tr').forEach((tr, idx) => {
         const accountText = tr.querySelector('.account-text');
         if (accountText) accountText.textContent = `${idx + 1}.***`;
