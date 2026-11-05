@@ -6,6 +6,7 @@
 <title>打榜数据录入 · 汇总</title>
 <link rel="stylesheet" href="common.css">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   body {
     display: block;
@@ -14,17 +15,72 @@
     padding: 6px;
     overflow: auto;
   }
-  h1 {
+  /* 全屏平铺水印 */
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 99998;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='120'><text x='20' y='70' font-size='28' font-weight='900' fill='rgba(234,54,144,0.06)' transform='rotate(-25 100 60)'>mzc051</text></svg>");
+    background-repeat: repeat;
+    background-size: 200px 120px;
+  }
+
+  /* 标题区：居中 */
+  .header-area {
+    max-width: 1600px;
+    margin: 0 auto 6px;
     text-align: center;
+    padding: 0 4px;
+  }
+  .header-area h1 {
     color: #ea3690;
     font-size: 18px;
     margin: 22px 0 10px;
   }
-  .subtitle {
-    text-align: center;
+  .header-area .subtitle {
     color: #999;
     font-size: 12px;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
+  }
+
+  /* 登录按钮：单独一行右对齐 */
+  .auth-row {
+    max-width: 1600px;
+    margin: 0 auto 12px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    padding: 0 4px;
+  }
+  .auth-text-btn {
+    background: transparent;
+    border: none;
+    color: #ea3690;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 2px 0;
+    font-family: inherit;
+    transition: 0.15s;
+    white-space: nowrap;
+  }
+  .auth-text-btn:hover {
+    text-decoration: underline;
+  }
+  .auth-text-btn.danger {
+    color: #e74c3c;
+  }
+  .auth-user {
+    font-size: 12px;
+    color: #555;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+  .auth-user b {
+    color: #ea3690;
   }
 
   .global-toolbar {
@@ -90,6 +146,10 @@
     outline: none; font-family: inherit; white-space: nowrap;
   }
   .backup-toolbar button:hover { background: rgba(234,54,144,0.06); }
+  .backup-toolbar button:disabled {
+    opacity: 0.45; cursor: not-allowed;
+    border-color: #e0e0e0; color: #aaa;
+  }
   .backup-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
   .backup-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
   .backup-toolbar .hint { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
@@ -162,6 +222,8 @@
   }
 
   @media (max-width: 900px) {
+    .header-area h1 { font-size: 16px; margin: 16px 0 8px; }
+    .auth-row { justify-content: flex-end; }
     .module-tabs { display: flex; }
     .module-grid {
       display: block;
@@ -174,13 +236,10 @@
     .module-card.active {
       display: flex;
     }
-    /* 截图时强制显示所有卡片 */
     .module-card.force-show {
       display: flex !important;
       margin-bottom: 8px;
     }
-    h1 { font-size: 16px; margin: 16px 0 8px; }
-    .subtitle { margin-bottom: 10px; }
     .global-toolbar input.new-account { flex-basis: 100%; }
     .global-toolbar .count { margin-left: 0; width: 100%; text-align: right; }
     .backup-toolbar .hint { margin-left: 0; width: 100%; text-align: right; }
@@ -201,13 +260,12 @@
     animation: fadeIn 0.15s ease;
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
   .modal-box {
     background: #fff;
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(234,54,144,0.2);
     border: 1px solid rgba(234,54,144,0.15);
-    max-width: 360px;
+    max-width: 380px;
     width: 100%;
     overflow: hidden;
     animation: popIn 0.18s ease;
@@ -216,7 +274,6 @@
     from { transform: scale(0.95); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
   }
-
   .modal-title {
     background: transparent;
     color: #ea3690;
@@ -225,39 +282,45 @@
     padding: 16px 16px 0 16px;
     text-align: center;
   }
-
   .modal-body {
     padding: 12px 16px 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-
   .modal-message {
     font-size: 12px;
     color: #666;
     line-height: 1.6;
     text-align: center;
   }
-  .modal-message .hint {
+  .modal-message b {
+  color: #ea3690;
+  font-weight: bold;
+}
+  .modal-message .hint { font-size: 11px; color: #999; }
+  .modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .modal-field label {
     font-size: 11px;
     color: #999;
+    font-weight: bold;
+    padding-left: 4px;
   }
-
   .modal-input {
     width: 100%;
     height: 38px;
     padding: 0 12px;
     border: 1px solid #f0d6e4;
     border-radius: 8px;
-    background: #fdf7fa;
+    background: #FFFFFF;
     color: #333;
-    font-size: 16px;
+    font-size: 15px;
     font-family: inherit;
     outline: none;
-    text-align: center;
-    font-weight: bold;
-    letter-spacing: 1px;
     transition: 0.15s;
   }
   .modal-input:focus {
@@ -265,11 +328,11 @@
     background: #fff;
     box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
   }
-
-  .modal-actions {
-    display: flex;
-    gap: 8px;
+  .modal-input::placeholder {
+    color: #ccc;
+    font-weight: normal;
   }
+  .modal-actions { display: flex; gap: 8px; }
   .modal-actions button {
     flex: 1;
     height: 38px;
@@ -294,14 +357,30 @@
     box-shadow: 0 3px 10px rgba(234,54,144,0.25);
   }
   .modal-btn-ok:hover { background: #d42f80; border-color: #d42f80; }
+  .modal-btn-secondary {
+    border: 1px solid rgba(234,54,144,0.35);
+    background: #fff;
+    color: #ea3690;
+  }
+  .modal-btn-secondary:hover { background: rgba(234,54,144,0.06); }
 </style>
 </head>
 <body>
-  <h1 id="exportTitle">打榜数据录入</h1>
-  <div class="subtitle" id="exportSubtitle">账号统一管理 · 多模块独立数据</div>
+
+  <!-- 顶部：标题 + 登录按钮 -->
+  <div class="header-area">
+    <h1 id="exportTitle">打榜数据录入</h1>
+    <div class="subtitle" id="exportSubtitle">账号统一管理 · 多模块独立数据</div>
+  </div>
+
+  <div class="auth-row" id="authBar">
+    <button id="authOpenBtn" class="auth-text-btn">登录 / 注册</button>
+    <span class="auth-user" id="authUser" style="display:none;"></span>
+    <button id="authLogoutBtn" class="auth-text-btn danger" style="display:none;">退出登录</button>
+  </div>
 
   <div class="global-toolbar">
-    <span class="label">统一账号</span>
+    <span class="label">打榜账号</span>
     <input class="new-account" type="text" id="globalNewAccount"
            placeholder="输入账号名，逗号或空格分隔可一次新增多个，按回车确认">
     <button id="globalAddBtn">新增</button>
@@ -312,10 +391,12 @@
 
   <div class="backup-toolbar">
     <span class="label">数据备份</span>
-    <button id="exportAllBtn">导出全部数据</button>
-    <button id="importAllBtn">导入全部数据</button>
+    <button id="exportAllBtn">导出数据</button>
+    <button id="importAllBtn">导入数据</button>
     <input type="file" id="importJsonInput" accept=".json,application/json">
-    <span class="hint">换设备时：旧设备导出 JSON → 传到新设备 → 新设备导入</span>
+    <button id="cloudSaveBtn" disabled>云端保存</button>
+    <button id="cloudLoadBtn" disabled>云端读取</button>
+    <span class="hint" id="cloudStatus">请先登录</span>
   </div>
 
   <div class="module-tabs" id="moduleTabs">
@@ -327,15 +408,15 @@
 
   <div class="module-grid" id="moduleGrid">
     <div class="module-card active" data-module="power">
-      <div class="module-title">电力（每 4 小时一轮）</div>
+      <div class="module-title">电力（盲盒CD：4h）</div>
       <iframe src="power.html" title="电力"></iframe>
     </div>
     <div class="module-card" data-module="youni">
-      <div class="module-title">由你积分</div>
+      <div class="module-title">由你积分（>112）</div>
       <iframe src="youni.html" title="由你积分"></iframe>
     </div>
     <div class="module-card" data-module="coin">
-      <div class="module-title">金币</div>
+      <div class="module-title">金币（>48w）</div>
       <iframe src="coin.html" title="金币"></iframe>
     </div>
     <div class="module-card" data-module="play">
@@ -345,6 +426,341 @@
   </div>
 
   <script>
+    // ===== Supabase 配置 =====
+    const SUPABASE_URL = 'https://vymukyyihiykkdmmqvyi.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_KpaSfKbb-HTb3z8ouXt8AA_9oeeRmps';
+    let supabaseClient = null;
+    let currentUser = null;
+    let cloudReady = false;
+
+    function setCloudStatus(text, ok) {
+      const el = document.getElementById('cloudStatus');
+      if (!el) return;
+      el.textContent = text;
+      el.style.color = ok ? '#22c55e' : '#999';
+    }
+
+    function updateAuthUI() {
+      const openBtn = document.getElementById('authOpenBtn');
+      const logoutBtn = document.getElementById('authLogoutBtn');
+      const userSpan = document.getElementById('authUser');
+      const saveBtn = document.getElementById('cloudSaveBtn');
+      const loadBtn = document.getElementById('cloudLoadBtn');
+
+      if (currentUser) {
+        openBtn.style.display = 'none';
+        logoutBtn.style.display = '';
+        userSpan.style.display = '';
+        userSpan.innerHTML = `已登录：<b>${escapeHtml(currentUser.email || '')}</b>`;
+        saveBtn.disabled = false;
+        loadBtn.disabled = false;
+      } else {
+        openBtn.style.display = '';
+        logoutBtn.style.display = 'none';
+        userSpan.style.display = 'none';
+        userSpan.innerHTML = '';
+        saveBtn.disabled = true;
+        loadBtn.disabled = true;
+        setCloudStatus('请先登录', false);
+      }
+    }
+
+    async function initSupabase() {
+      try {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (session && session.user) {
+            currentUser = session.user;
+            cloudReady = true;
+            updateAuthUI();
+            pullFromCloud(true);
+          } else {
+            currentUser = null;
+            cloudReady = false;
+            updateAuthUI();
+          }
+        });
+
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) throw error;
+        if (data.session && data.session.user) {
+          currentUser = data.session.user;
+          cloudReady = true;
+          updateAuthUI();
+          await pullFromCloud(true);
+        } else {
+          updateAuthUI();
+        }
+      } catch (err) {
+        console.error('Supabase init failed', err);
+        setCloudStatus('云端连接失败：' + (err.message || err), false);
+      }
+    }
+
+    // ===== 登录/注册弹窗 =====
+    function showAuthModal() {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.id = 'authModalOverlay';
+      overlay.innerHTML = `
+        <div class="modal-box">
+          <div class="modal-title">登录 / 注册</div>
+          <div class="modal-body">
+            <div class="modal-message">
+              邮箱需符合格式, 如 <b>mzc051@mzc051.com</b>。<br>
+              请记住，换设备找回数据时需要用同一个邮箱登录
+            </div>
+            <div class="modal-field">
+              <label>邮箱</label>
+              <input class="modal-input" type="email" id="modalAuthEmail" placeholder="例如 xiaoming@example.com" autocomplete="username">
+            </div>
+            <div class="modal-field">
+              <label>密码（至少 6 位）</label>
+              <input class="modal-input" type="password" id="modalAuthPassword" placeholder="请输入密码" autocomplete="current-password">
+            </div>
+            <div class="modal-actions">
+              <button class="modal-btn-secondary" id="modalAuthRegister">注册</button>
+              <button class="modal-btn-ok" id="modalAuthLogin">登录</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const emailInput = overlay.querySelector('#modalAuthEmail');
+      const pwdInput = overlay.querySelector('#modalAuthPassword');
+      const loginBtn = overlay.querySelector('#modalAuthLogin');
+      const regBtn = overlay.querySelector('#modalAuthRegister');
+
+      setTimeout(() => emailInput.focus(), 50);
+
+      function close() {
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+      }
+      function onKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); close(); }
+        else if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+      }
+      document.addEventListener('keydown', onKey);
+      overlay.addEventListener('click', function(e){
+        if (e.target === overlay) close();
+      });
+
+      async function doLogin() {
+        const email = emailInput.value.trim();
+        const password = pwdInput.value;
+        if (!email || !password) {
+          showAlert('提示', '请填写邮箱和密码');
+          return;
+        }
+        try {
+          const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          close();
+          showAlert('登录成功', '已登录，正在同步云端数据...');
+        } catch (err) {
+          const msg = err.message || String(err);
+          if (msg.includes('Invalid login credentials')) {
+            showAlert('登录失败', '邮箱或密码错误，请检查后重试。');
+          } else {
+            showAlert('登录失败', escapeHtml(msg));
+          }
+        }
+      }
+
+      async function doRegister() {
+        const email = emailInput.value.trim();
+        const password = pwdInput.value;
+        if (!email || !password) {
+          showAlert('提示', '请填写邮箱和密码');
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          showAlert('提示', '邮箱格式不对，例如 xiaoming@example.com');
+          return;
+        }
+        if (password.length < 6) {
+          showAlert('提示', '密码至少 6 位');
+          return;
+        }
+        try {
+          const { data, error } = await supabaseClient.auth.signUp({ email, password });
+          if (error) throw error;
+          close();
+          if (data.session) {
+            showAlert('注册成功', '已自动登录，正在同步云端数据...');
+          } else {
+            showAlert('注册成功', '请使用刚才的邮箱和密码登录。');
+          }
+        } catch (err) {
+          const msg = err.message || String(err);
+          if (msg.includes('already registered') || msg.includes('User already registered')) {
+            showAlert('注册失败', '该邮箱已经注册过了，请直接登录。');
+          } else if (msg.includes('invalid format') || msg.includes('validate email')) {
+            showAlert('提示', '邮箱格式不对，例如 xiaoming@example.com');
+          } else if (msg.includes('Password should be')) {
+            showAlert('提示', '密码太简单或太短，请至少 6 位。');
+          } else {
+            showAlert('注册失败', escapeHtml(msg));
+          }
+        }
+      }
+
+      loginBtn.addEventListener('click', doLogin);
+      regBtn.addEventListener('click', doRegister);
+    }
+
+    async function logout() {
+      showConfirm('退出登录', '确定退出当前账号吗？<br>本地数据不会删除。', async function(ok) {
+        if (!ok) return;
+        await supabaseClient.auth.signOut();
+        currentUser = null;
+        cloudReady = false;
+        updateAuthUI();
+      });
+    }
+
+    // ===== 云端同步 =====
+    function collectLocalData() {
+      const payload = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('bang_')) {
+          payload[key] = localStorage.getItem(key);
+        }
+      }
+      return payload;
+    }
+
+    async function saveToCloud() {
+      if (!cloudReady || !supabaseClient || !currentUser) {
+        showAlert('未登录', '请先登录账号。');
+        return;
+      }
+      const payload = collectLocalData();
+      if (Object.keys(payload).length === 0) {
+        showAlert('提示', '当前没有任何可保存的数据');
+        return;
+      }
+      try {
+        setCloudStatus('保存中...', true);
+        const { data: existing, error: qErr } = await supabaseClient
+          .from('bang_data')
+          .select('id')
+          .eq('user_id', currentUser.id)
+          .limit(1);
+        if (qErr) throw qErr;
+
+        if (existing && existing.length > 0) {
+          const { error } = await supabaseClient
+            .from('bang_data')
+            .update({ data: payload, updated_at: new Date().toISOString() })
+            .eq('id', existing[0].id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabaseClient
+            .from('bang_data')
+            .insert({ user_id: currentUser.id, data: payload });
+          if (error) throw error;
+        }
+        setCloudStatus('已保存到云端', true);
+        showAlert('保存成功', '当前数据已保存到云端。');
+      } catch (err) {
+        console.error(err);
+        setCloudStatus('保存失败', false);
+        showAlert('保存失败', escapeHtml(err.message || String(err)));
+      }
+    }
+
+    async function loadFromCloud(silent) {
+      if (!cloudReady || !supabaseClient || !currentUser) {
+        if (!silent) showAlert('未登录', '请先登录账号。');
+        return;
+      }
+      try {
+        setCloudStatus('读取中...', true);
+        const { data, error } = await supabaseClient
+          .from('bang_data')
+          .select('data')
+          .eq('user_id', currentUser.id)
+          .limit(1);
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          setCloudStatus('云端暂无数据', true);
+          if (!silent) showAlert('提示', '云端还没有保存过数据。');
+          return;
+        }
+
+        const cloudData = data[0].data || {};
+        const keys = Object.keys(cloudData);
+        if (keys.length === 0) {
+          setCloudStatus('云端数据为空', true);
+          if (!silent) showAlert('提示', '云端数据为空。');
+          return;
+        }
+
+        keys.forEach(k => {
+          if (k.startsWith('bang_')) {
+            localStorage.setItem(k, cloudData[k]);
+          }
+        });
+
+        setCloudStatus('已从云端读取', true);
+        if (!silent) {
+          showAlert('读取成功', '云端数据已写入本地，页面将刷新。', function() {
+            location.reload();
+          });
+        } else {
+          reloadIframes();
+        }
+      } catch (err) {
+        console.error(err);
+        setCloudStatus('读取失败', false);
+        if (!silent) showAlert('读取失败', escapeHtml(err.message || String(err)));
+      }
+    }
+
+    function reloadIframes() {
+      document.querySelectorAll('.module-card iframe').forEach(iframe => {
+        try { iframe.contentWindow.location.reload(); } catch(e) {}
+      });
+    }
+
+    function pullFromCloud(silent) {
+      return new Promise(resolve => {
+        (async () => {
+          try {
+            if (!cloudReady || !supabaseClient || !currentUser) { resolve(); return; }
+            const { data, error } = await supabaseClient
+              .from('bang_data')
+              .select('data')
+              .eq('user_id', currentUser.id)
+              .limit(1);
+            if (error) throw error;
+            if (data && data.length > 0 && data[0].data) {
+              const cloudData = data[0].data;
+              Object.keys(cloudData).forEach(k => {
+                if (k.startsWith('bang_')) localStorage.setItem(k, cloudData[k]);
+              });
+              setCloudStatus('已从云端同步', true);
+              reloadIframes();
+            } else {
+              setCloudStatus('云端已登录（暂无数据）', true);
+            }
+          } catch (err) {
+            console.error(err);
+            setCloudStatus('云端同步失败', false);
+          } finally {
+            resolve();
+          }
+        })();
+      });
+    }
+
+    // ===== 原有逻辑 =====
     const ACCOUNTS_STORAGE_KEY = 'bang_global_accounts';
     const STORAGE_PREFIX = 'bang_';
 
@@ -416,7 +832,7 @@
 
     function clearGlobalAccounts() {
       if (globalAccounts.length === 0) { showAlert('提示', '当前已经没有账号了'); return; }
-      showConfirm('清空账号', '确定要清空所有统一账号吗？<br>各模块中对应的账号数据也会被移除，此操作不可撤销。', function(ok) {
+      showConfirm('清空账号', '确定要清空所有打榜账号吗？<br>各模块中对应的账号数据也会被移除，此操作不可撤销。', function(ok) {
         if (!ok) return;
         globalAccounts = [];
         saveGlobalAccounts(globalAccounts);
@@ -440,6 +856,11 @@
       });
       clearBtn.addEventListener('click', clearGlobalAccounts);
       document.getElementById('exportPngBtn').addEventListener('click', exportPageAsPng);
+    }
+
+    function initAuthBar() {
+      document.getElementById('authOpenBtn').addEventListener('click', showAuthModal);
+      document.getElementById('authLogoutBtn').addEventListener('click', logout);
     }
 
     function initModuleTabs() {
@@ -470,27 +891,17 @@
     }
 
     function exportAllData() {
-      const payload = {};
-      let count = 0;
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(STORAGE_PREFIX)) {
-          payload[key] = localStorage.getItem(key);
-          count++;
-        }
-      }
-      if (count === 0) {
+      const payload = collectLocalData();
+      if (Object.keys(payload).length === 0) {
         showAlert('提示', '当前没有任何可导出的数据');
         return;
       }
-
       const exportObj = {
         app: '打榜数据录入',
         version: 1,
         exportedAt: new Date().toISOString(),
         data: payload
       };
-
       const json = JSON.stringify(exportObj, null, 2);
       const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -511,25 +922,21 @@
             showAlert('导入失败', '文件格式不正确：缺少 data 字段');
             return;
           }
-
           const dataObj = parsed.data;
           const keys = Object.keys(dataObj);
           if (keys.length === 0) {
             showAlert('导入失败', '文件中没有任何数据');
             return;
           }
-
           const bangKeys = keys.filter(k => k.startsWith(STORAGE_PREFIX));
           if (bangKeys.length === 0) {
             showAlert('导入失败', '文件中没有找到本应用的数据（未找到 bang_ 开头的键）');
             return;
           }
-
           let summary = `将导入 <b>${bangKeys.length}</b> 项数据，覆盖当前设备的对应数据。<br><br>包含：<br>`;
           bangKeys.slice(0, 8).forEach(k => { summary += `- ${escapeHtml(k)}<br>`; });
           if (bangKeys.length > 8) summary += `- ……等共 ${bangKeys.length} 项<br>`;
           summary += '<br>确定要导入吗？当前设备的相关数据会被覆盖，此操作不可撤销。';
-
           showConfirm('导入全部数据', summary, function(ok) {
             if (!ok) return;
             bangKeys.forEach(k => {
@@ -555,25 +962,29 @@
       const exportBtn = document.getElementById('exportAllBtn');
       const importBtn = document.getElementById('importAllBtn');
       const fileInput = document.getElementById('importJsonInput');
-
       exportBtn.addEventListener('click', exportAllData);
-
       importBtn.addEventListener('click', () => {
         fileInput.value = '';
         fileInput.click();
       });
-
       fileInput.addEventListener('change', function(e) {
         const file = e.target.files && e.target.files[0];
         if (file) importAllData(file);
+      });
+      document.getElementById('cloudSaveBtn').addEventListener('click', saveToCloud);
+      document.getElementById('cloudLoadBtn').addEventListener('click', function() {
+        showConfirm('从云端读取', '将用云端数据覆盖当前设备的本地数据，确定吗？', function(ok) {
+          if (!ok) return;
+          loadFromCloud(false);
+        });
       });
     }
 
     // ===== 导出 PNG =====
     const MODULE_TITLES = {
-      power: '电力（每 4 小时一轮）',
-      youni: '由你积分',
-      coin: '金币',
+      power: '电力（盲盒CD：4h）',
+      youni: '由你积分（>112）',
+      coin: '金币（>48w）',
       play: '刷播'
     };
 
@@ -583,7 +994,6 @@
         const timeout = setTimeout(() => {
           if (!finished) { finished = true; resolve(null); }
         }, 8000);
-
         function onMsg(e) {
           if (!e.data || e.data.type !== 'capture-result') return;
           finished = true;
@@ -592,7 +1002,6 @@
           resolve(e.data.dataURL || null);
         }
         window.addEventListener('message', onMsg);
-
         try {
           iframe.contentWindow.postMessage({ type: 'capture' }, '*');
         } catch(err) {
@@ -608,93 +1017,97 @@
       const btn = document.getElementById('exportPngBtn');
       btn.disabled = true;
       btn.textContent = '生成中...';
-
       const grid = document.getElementById('moduleGrid');
       const isMobile = window.matchMedia('(max-width: 900px)').matches;
       let prevActiveModule = null;
-
       if (isMobile) {
         const activeCard = document.querySelector('.module-card.active');
         if (activeCard) prevActiveModule = activeCard.dataset.module;
-        // 临时显示所有卡片
-        grid.querySelectorAll('.module-card').forEach(c => {
-          c.classList.add('force-show');
-        });
-        // 等布局稳定
+        grid.querySelectorAll('.module-card').forEach(c => c.classList.add('force-show'));
         await new Promise(r => setTimeout(r, 200));
       }
-
       try {
         const title = document.getElementById('exportTitle').textContent;
         const subtitle = document.getElementById('exportSubtitle').textContent;
         const cards = document.querySelectorAll('.module-card');
         const results = [];
-
         for (let i = 0; i < cards.length; i++) {
           const card = cards[i];
           const mod = card.dataset.module;
           const iframe = card.querySelector('iframe');
           let dataURL = null;
-          if (iframe) {
-            dataURL = await requestModuleCapture(iframe);
-          }
+          if (iframe) dataURL = await requestModuleCapture(iframe);
           results.push({ mod, title: MODULE_TITLES[mod] || mod, dataURL });
         }
-
-        // 拼图
-        const scale = 2;
-        const gap = 24 * scale;
+        const scale = 4;
+        const gap = 12 * scale;
         const padding = 32 * scale;
-        const titleH = 60 * scale;
-        const subtitleH = 32 * scale;
-        const cardTitleH = 36 * scale;
+        const titleH = 24 * scale;
+        const subtitleH = 16 * scale;
+        const cardTitleH = 20 * scale;
         const colW = 360 * scale;
-        const rowH = 420 * scale + cardTitleH;
-        const cols = 2;
-        const rows = Math.ceil(results.length / cols);
+        // 先加载所有图片，按 colW 算每张图的内容高度
+        const loadedImgs = [];
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
+          if (r.dataURL) {
+            try {
+              const img = await loadImage(r.dataURL);
+              const drawH = colW * (img.height / img.width);
+              loadedImgs.push({ img, drawH });
+            } catch(e) {
+              loadedImgs.push({ img: null, drawH: 200 * scale });
+            }
+          } else {
+            loadedImgs.push({ img: null, drawH: 200 * scale });
+          }
+        }
 
-        const totalW = padding * 2 + colW * cols + gap * (cols - 1);
-        const totalH = padding * 2 + titleH + subtitleH + rowH * rows + gap * (rows - 1);
+        // 单列：每张图自己一行
+        const rowHeights = loadedImgs.map(item => item.drawH + cardTitleH);
+        const rows = rowHeights.length;
+
+        const totalW = padding * 2 + colW;
+        let totalH = padding * 2 + titleH + subtitleH;
+        rowHeights.forEach(h => { totalH += h; });
+        totalH += gap * (rows - 1);
 
         const canvas = document.createElement('canvas');
         canvas.width = totalW;
         canvas.height = totalH;
         const ctx = canvas.getContext('2d');
-
         ctx.fillStyle = '#faf7f9';
         ctx.fillRect(0, 0, totalW, totalH);
-
         ctx.fillStyle = '#ea3690';
-        ctx.font = `bold ${18 * scale}px system-ui, sans-serif`;
+        ctx.font = `bold ${16 * scale}px system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText(title, totalW / 2, padding);
-
         ctx.fillStyle = '#999';
-        ctx.font = `${12 * scale}px system-ui, sans-serif`;
+        ctx.font = `${8 * scale}px system-ui, sans-serif`;
         ctx.fillText(subtitle, totalW / 2, padding + titleH);
 
-        for (let i = 0; i < results.length; i++) {
-          const r = results[i];
-          const col = i % cols;
-          const row = Math.floor(i / cols);
-          const x = padding + col * (colW + gap);
-          const y = padding + titleH + subtitleH + row * (rowH + gap);
+        let currentY = padding + titleH + subtitleH;
+        for (let row = 0; row < rows; row++) {
+          const rowH = rowHeights[row];
+          const r = results[row];
+          const x = padding;
+          const y = currentY;
 
           ctx.fillStyle = '#fff';
-          roundRect(ctx, x, y, colW, rowH, 10 * scale);
+          roundRect(ctx, x, y, colW, rowH, 6 * scale);
           ctx.fill();
           ctx.strokeStyle = 'rgba(234,54,144,0.15)';
           ctx.lineWidth = 1 * scale;
-          roundRect(ctx, x, y, colW, rowH, 10 * scale);
+          roundRect(ctx, x, y, colW, rowH, 6 * scale);
           ctx.stroke();
 
           ctx.fillStyle = '#ea3690';
-          roundRectTop(ctx, x, y, colW, cardTitleH, 10 * scale);
+          roundRectTop(ctx, x, y, colW, cardTitleH, 6 * scale);
           ctx.fill();
 
           ctx.fillStyle = '#fff';
-          ctx.font = `bold ${13 * scale}px system-ui, sans-serif`;
+          ctx.font = `bold ${8 * scale}px system-ui, sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(r.title, x + colW / 2, y + cardTitleH / 2);
@@ -708,15 +1121,10 @@
               const boxRatio = colW / contentH;
               let drawW, drawH, drawX, drawY;
               if (imgRatio > boxRatio) {
-                drawW = colW;
-                drawH = colW / imgRatio;
-                drawX = x;
-                drawY = contentY;
+                drawW = colW; drawH = colW / imgRatio; drawX = x; drawY = contentY;
               } else {
-                drawH = contentH;
-                drawW = contentH * imgRatio;
-                drawX = x + (colW - drawW) / 2;
-                drawY = contentY;
+                drawH = contentH; drawW = contentH * imgRatio;
+                drawX = x + (colW - drawW) / 2; drawY = contentY;
               }
               ctx.drawImage(img, drawX, drawY, drawW, drawH);
             } catch(err) {}
@@ -727,29 +1135,45 @@
             ctx.textBaseline = 'middle';
             ctx.fillText('（无法获取截图）', x + colW / 2, y + cardTitleH + (rowH - cardTitleH) / 2);
           }
-        }
 
+          currentY += rowH + gap;
+        }
+        // 在 canvas 上平铺水印
+        const wmText = 'mzc051';
+        const wmFontSize = 28 * scale;
+        ctx.save();
+        ctx.font = `900 ${wmFontSize}px system-ui, sans-serif`;
+        ctx.fillStyle = 'rgba(234, 54, 144, 0.08)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const wmStepX = 200 * scale;
+        const wmStepY = 120 * scale;
+        for (let y = -wmStepY; y < canvas.height + wmStepY; y += wmStepY) {
+          for (let x = -wmStepX; x < canvas.width + wmStepX; x += wmStepX) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-25 * Math.PI / 180);
+            ctx.fillText(wmText, 0, 0);
+            ctx.restore();
+          }
+        }
+        ctx.restore();
         const url = canvas.toDataURL('image/png');
         const a = document.createElement('a');
         a.href = url;
         a.download = `打榜截图_${todayStr()}.png`;
         a.click();
-
         showAlert('导出成功', 'PNG 已生成，账号已统一打码为 ***。');
       } catch(err) {
         console.error(err);
         showAlert('导出失败', escapeHtml(err.message || String(err)));
       } finally {
         if (isMobile) {
-          grid.querySelectorAll('.module-card').forEach(c => {
-            c.classList.remove('force-show');
-          });
-          // 恢复之前的 active
+          grid.querySelectorAll('.module-card').forEach(c => c.classList.remove('force-show'));
           const cards = document.querySelectorAll('.module-card');
           cards.forEach(c => c.classList.remove('active'));
           const restore = document.querySelector(`.module-card[data-module="${prevActiveModule || 'power'}"]`);
           if (restore) restore.classList.add('active');
-          // 重新广播
           setTimeout(() => {
             cards.forEach(c => {
               if (c.classList.contains('active')) {
@@ -801,9 +1225,9 @@
     }
 
     const IFRAME_MODULE_MAP = {
-      '电力（每 4 小时一轮）': 'power',
-      '由你积分': 'youni',
-      '金币': 'coin',
+      '电力（盲盒CD：4h）': 'power',
+      '由你积分（>112）': 'youni',
+      '金币（>48w）': 'coin',
       '刷播': 'play'
     };
     const MODULE_IFRAME_MAP = {};
@@ -831,17 +1255,14 @@
     function showModal(payload, sourceWindow, requestId) {
       closeGlobalModal(null, false);
       pendingModal = { source: sourceWindow, requestId: requestId };
-
       const overlay = document.createElement('div');
       overlay.className = 'modal-overlay';
       overlay.id = 'globalModalOverlay';
-
       const title = payload.title || '提示';
       const messageHtml = payload.messageHtml || escapeHtml(payload.message || '');
       const showInput = payload.showInput === true;
       const okText = payload.okText || '确定';
       const cancelText = payload.cancelText || '取消';
-
       overlay.innerHTML = `
         <div class="modal-box">
           <div class="modal-title">${escapeHtml(title)}</div>
@@ -856,15 +1277,10 @@
         </div>
       `;
       document.body.appendChild(overlay);
-
       const input = overlay.querySelector('.modal-input');
       const btnOk = overlay.querySelector('.modal-btn-ok');
       const btnCancel = overlay.querySelector('.modal-btn-cancel');
-
-      if (input) {
-        setTimeout(() => { input.focus(); input.select(); }, 50);
-      }
-
+      if (input) setTimeout(() => { input.focus(); input.select(); }, 50);
       function finish(result) {
         const pm = pendingModal;
         pendingModal = null;
@@ -872,17 +1288,12 @@
         document.removeEventListener('keydown', onKey);
         if (pm && pm.source) {
           try {
-            pm.source.postMessage({
-              type: 'modal-result',
-              requestId: pm.requestId,
-              value: result
-            }, '*');
+            pm.source.postMessage({ type: 'modal-result', requestId: pm.requestId, value: result }, '*');
           } catch(e) {}
         } else if (payload.onResult) {
           payload.onResult(result);
         }
       }
-
       function confirm() {
         const val = input ? input.value : '';
         finish({ confirmed: true, value: val });
@@ -890,13 +1301,11 @@
       function cancel() {
         finish({ confirmed: false, value: null });
       }
-
       btnOk.addEventListener('click', confirm);
       if (btnCancel) btnCancel.addEventListener('click', cancel);
       overlay.addEventListener('click', function(e){
         if (e.target === overlay) cancel();
       });
-
       function onKey(e) {
         if (e.key === 'Escape') { e.preventDefault(); cancel(); }
         else if (e.key === 'Enter') { e.preventDefault(); confirm(); }
@@ -911,11 +1320,7 @@
       pendingModal = null;
       if (pm && notify && pm.source) {
         try {
-          pm.source.postMessage({
-            type: 'modal-result',
-            requestId: pm.requestId,
-            value: result
-          }, '*');
+          pm.source.postMessage({ type: 'modal-result', requestId: pm.requestId, value: result }, '*');
         } catch(e) {}
       }
     }
@@ -951,18 +1356,16 @@
 
     window.addEventListener('message', function(e) {
       if (!e.data) return;
-
       if (e.data.type === 'show-modal') {
         showModal(e.data.payload || {}, e.source, e.data.requestId || '');
         return;
       }
-
       if (e.data.type === 'delete-account') {
         const name = e.data.account;
         if (!name) return;
         const idx = globalAccounts.indexOf(name);
         if (idx === -1) return;
-        showConfirm('删除统一账号', `确定删除统一账号「<b>${escapeHtml(name)}</b>」吗？<br>所有模块中该账号的数据都会被清除。`, function(ok) {
+        showConfirm('删除打榜账号', `确定删除打榜账号「<b>${escapeHtml(name)}</b>」吗？<br>所有模块中该账号的数据都会被清除。`, function(ok) {
           if (!ok) return;
           globalAccounts.splice(idx, 1);
           saveGlobalAccounts(globalAccounts);
@@ -971,7 +1374,6 @@
         });
         return;
       }
-
       if (e.data.type === 'resize') {
         const moduleName = e.data.module;
         const h = Number(e.data.height) || 0;
@@ -1002,19 +1404,18 @@
       const moduleName = IFRAME_MODULE_MAP[title] || title;
       iframe.addEventListener('load', function() {
         try {
-          this.contentWindow.postMessage({
-            type: 'accounts-changed',
-            accounts: globalAccounts
-          }, '*');
+          this.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*');
         } catch(e) {}
         syncIframeHeightFromDoc(this, moduleName);
         setTimeout(() => syncIframeHeightFromDoc(this, moduleName), 300);
       });
     });
 
+    initAuthBar();
     initGlobalToolbar();
     initBackupToolbar();
     initModuleTabs();
+    initSupabase();
   </script>
 </body>
 </html>

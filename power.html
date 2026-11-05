@@ -414,7 +414,7 @@
     const box = document.getElementById('powerTableBox');
     let rows = '';
     if (ACCOUNTS.length === 0) {
-      rows = `<tr class="empty-row"><td colspan="9">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
+      rows = `<tr class="empty-row"><td colspan="9">当前无账号，请在顶部「打榜账号」输入框中添加</td></tr>`;
     } else {
       rows = ACCOUNTS.map((a, idx) => {
         const rec = records[a] || {};
@@ -858,6 +858,14 @@
       wrapper.style.left = '-99999px';
       wrapper.style.top = '0';
       wrapper.style.zIndex = '-1';
+      // 截图时放大字号
+      const styleOverride = document.createElement('style');
+      styleOverride.textContent = `
+        .capture-mode table { font-size: 14px !important; }
+        .capture-mode th, .capture-mode td { font-size: 14px !important; }
+        .capture-mode input { font-size: 14px !important; }`;
+      wrapper.classList.add('capture-mode');
+      wrapper.appendChild(styleOverride);
       wrapper.appendChild(statsClone);
       wrapper.appendChild(tableClone);
       document.body.appendChild(wrapper);
