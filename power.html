@@ -187,19 +187,21 @@
   let dailyDate = '';
   let timerInterval = null;
 
+  // 待处理的弹窗请求
+  let modalRequestCounter = 0;
+  const pendingModalResolvers = {};
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   function normalizeName(name) { return String(name).trim().replace(/\s+/g, ' '); }
   function pad2(n) { return String(n).padStart(2, '0'); }
 
-  // 下一轮时间只显示到分钟：MM-DD HH:mm
   function formatTimeMinute(ts) {
     const d = new Date(ts);
     return `${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   }
 
-  // 倒计时只显示到分钟：HH:mm（不足 1 分钟显示 <1分）
   function formatCountdownMinute(ms) {
     if (ms <= 0) return '可做';
     const totalMin = Math.floor(ms / 60000);
@@ -250,6 +252,41 @@
       } catch(e) {}
     }
   }
+
+  // 向父页面请求显示弹窗，返回 Promise
+  function requestModal(payload) {
+    return new Promise(resolve => {
+      if (!window.parent || window.parent === window) {
+        // 不在 iframe 里，退化为 alert/prompt
+        if (payload.showInput !== false) {
+          const v = prompt(payload.message || '', payload.defaultValue || '');
+          resolve(v === null ? { confirmed: false, value: null } : { confirmed: true, value: v });
+        } else {
+          alert(payload.message || '');
+          resolve({ confirmed: true, value: null });
+        }
+        return;
+      }
+      const requestId = 'modal_' + (++modalRequestCounter);
+      pendingModalResolvers[requestId] = resolve;
+      window.parent.postMessage({
+        type: 'show-modal',
+        requestId: requestId,
+        payload: payload
+      }, '*');
+    });
+  }
+
+  window.addEventListener('message', function(e) {
+    if (!e.data) return;
+    if (e.data.type === 'modal-result') {
+      const rid = e.data.requestId;
+      if (pendingModalResolvers[rid]) {
+        pendingModalResolvers[rid](e.data.value);
+        delete pendingModalResolvers[rid];
+      }
+    }
+  });
 
   function loadPowerState() {
     try {
@@ -479,8 +516,8 @@
     renderPower();
   }
 
-  // ===== 手动修改盲盒完成时间（只填时分） =====
-  function manualEditSharedTime(acc) {
+  // ===== 手动修改盲盒完成时间（请求父页面弹窗） =====
+  async function manualEditSharedTime(acc) {
     const rec = records[acc];
     if (!rec || rec.disabled) return;
     const r = rec[SHARED] || { done: false, ts: 0 };
@@ -491,18 +528,19 @@
       currentText = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
     }
 
-    const input = prompt(
-      `手动设置「${acc}」盲盒的完成时间\n\n` +
-      `只填时分，例如 14:30 或 1430\n` +
-      `规则：如果填的时间比现在晚，按今天算；比现在早，按昨天算。\n` +
-      `留空则清除完成记录（恢复为未做）。\n\n` +
-      `当前完成时间：${currentText || '未做'}`,
-      currentText
-    );
+    const result = await requestModal({
+      title: '修改盲盒完成时间',
+      messageHtml: `只填时分，例如 <b>14:30</b> 或 <b>1430</b><br><span class="hint">比现在晚按今天算，比现在早按昨天算。留空则清除完成记录。</span>`,
+      showInput: true,
+      defaultValue: currentText,
+      placeholder: '例如 14:30',
+      okText: '确定',
+      cancelText: '取消'
+    });
 
-    if (input === null) return;
+    if (!result || !result.confirmed) return;
 
-    const trimmed = input.trim();
+    const trimmed = (result.value || '').trim();
     if (trimmed === '') {
       records[acc][SHARED] = { done: false, ts: 0 };
       savePowerRecords();
@@ -512,7 +550,12 @@
 
     const parsed = parseHourMinuteInput(trimmed);
     if (!parsed) {
-      alert('时间格式不正确，请填写时分，例如 14:30 或 1430');
+      await requestModal({
+        title: '格式错误',
+        messageHtml: '时间格式不正确，请填写时分，例如 <b>14:30</b> 或 <b>1430</b>。',
+        showInput: false,
+        okText: '知道了'
+      });
       return;
     }
 
@@ -521,7 +564,6 @@
     renderPower();
   }
 
-  // 解析 HH:mm 或 HHmm，自动判断今天/昨天
   function parseHourMinuteInput(str) {
     let m = str.match(/^(\d{1,2}):(\d{2})$/);
     if (!m) m = str.match(/^(\d{1,2})(\d{2})$/);
@@ -535,7 +577,6 @@
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
     let ts = today.getTime();
 
-    // 如果填的时间比现在晚（今天还没到），按昨天算
     if (ts > Date.now()) {
       ts -= 24 * 60 * 60 * 1000;
     }

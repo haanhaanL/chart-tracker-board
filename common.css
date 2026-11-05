@@ -64,7 +64,7 @@ body {
 .toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
 .toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
 
-/* ===== 表格容器 ===== */
+/* ===== 表格容器：创建独立层叠上下文 ===== */
 .table-box {
   background: white;
   border-radius: 8px;
@@ -101,15 +101,22 @@ thead th {
   z-index: 3;
   border: 1px solid rgba(255,255,255,0.3);
 }
+
+/* 表头账号列：最高层级 */
 thead th:first-child {
   border-top-left-radius: 6px;
   position: sticky;
   top: 0;
   left: 0;
-  z-index: 30;
+  z-index: 100;
   background: #ea3690;
   text-align: left;
   padding-left: 6px;
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  box-sizing: border-box;
+  border-right: 1px solid rgba(255,255,255,0.3);
 }
 thead th:last-child {
   border-top-right-radius: 6px;
@@ -128,7 +135,6 @@ tbody td {
   background: #fff;
 }
 tbody tr:nth-child(even) td { background: #fdf7fa; }
-tbody tr:hover td { background: rgba(234,54,144,0.05); }
 
 tfoot tr {
   height: 42px;
@@ -141,21 +147,24 @@ tfoot td {
   font-weight: bold;
 }
 
-/* 账号列：sticky + 高 z-index + 不透明背景 */
+/* 账号列 td：高于普通 td */
 .account-cell {
   text-align: left !important;
   font-weight: bold;
   color: #555;
   padding-left: 6px !important;
   white-space: nowrap;
-  width: 100px;
   position: sticky;
   left: 0;
-  z-index: 20;
+  z-index: 90;
   background: #fff;
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  box-sizing: border-box;
+  border-right: 1px solid #f3e6ee;
 }
 tbody tr:nth-child(even) .account-cell { background: #fdf7fa; }
-tbody tr:hover .account-cell { background: rgba(234,54,144,0.05); }
 
 .account-text {
   display: block;

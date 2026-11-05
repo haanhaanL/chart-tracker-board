@@ -93,7 +93,6 @@
   .backup-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
   .backup-toolbar .hint { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
 
-  /* ===== 移动端 tab 栏：整体一个圆角矩形 ===== */
   .module-tabs {
     display: none;
     max-width: 1600px;
@@ -182,6 +181,113 @@
   }
 
   #importJsonInput { display: none; }
+
+  /* ===== 统一弹窗（标题无背景色、粉色文字） ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    padding: 16px;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal-box {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(234,54,144,0.2);
+    border: 1px solid rgba(234,54,144,0.15);
+    max-width: 360px;
+    width: 100%;
+    overflow: hidden;
+    animation: popIn 0.18s ease;
+  }
+  @keyframes popIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .modal-title {
+    background: transparent;
+    color: #ea3690;
+    font-size: 15px;
+    font-weight: bold;
+    padding: 16px 16px 0 16px;
+    text-align: center;
+  }
+
+  .modal-body {
+    padding: 12px 16px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .modal-message {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.6;
+    text-align: center;
+  }
+  .modal-message .hint {
+    font-size: 11px;
+    color: #999;
+  }
+
+  .modal-input {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid #f0d6e4;
+    border-radius: 8px;
+    background: #fdf7fa;
+    color: #333;
+    font-size: 16px;
+    font-family: inherit;
+    outline: none;
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: 0.15s;
+  }
+  .modal-input:focus {
+    border-color: #ea3690;
+    background: #fff;
+    box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .modal-actions button {
+    flex: 1;
+    height: 38px;
+    border-radius: 19px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+  .modal-btn-cancel {
+    border: 1px solid rgba(234,54,144,0.35);
+    background: #fff;
+    color: #ea3690;
+  }
+  .modal-btn-cancel:hover { background: rgba(234,54,144,0.06); }
+  .modal-btn-ok {
+    border: 1px solid #ea3690;
+    background: #ea3690;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(234,54,144,0.25);
+  }
+  .modal-btn-ok:hover { background: #d42f80; border-color: #d42f80; }
 </style>
 </head>
 <body>
@@ -297,17 +403,19 @@
       }
       inputEl.value = '';
       if (skipped.length) {
-        alert(`以下账号已存在，已跳过：\n${skipped.join('、')}`);
+        showAlert('账号已存在', `以下账号已存在，已跳过：<br>${skipped.map(escapeHtml).join('、')}`);
       }
     }
 
     function clearGlobalAccounts() {
-      if (globalAccounts.length === 0) { alert('当前已经没有账号了'); return; }
-      if (!confirm('确定要清空所有统一账号吗？各模块中对应的账号数据也会被移除，此操作不可撤销。')) return;
-      globalAccounts = [];
-      saveGlobalAccounts(globalAccounts);
-      updateGlobalCount();
-      broadcastAccountsChanged();
+      if (globalAccounts.length === 0) { showAlert('提示', '当前已经没有账号了'); return; }
+      showConfirm('清空账号', '确定要清空所有统一账号吗？<br>各模块中对应的账号数据也会被移除，此操作不可撤销。', function(ok) {
+        if (!ok) return;
+        globalAccounts = [];
+        saveGlobalAccounts(globalAccounts);
+        updateGlobalCount();
+        broadcastAccountsChanged();
+      });
     }
 
     function initGlobalToolbar() {
@@ -364,7 +472,7 @@
         }
       }
       if (count === 0) {
-        alert('当前没有任何可导出的数据');
+        showAlert('提示', '当前没有任何可导出的数据');
         return;
       }
 
@@ -392,44 +500,45 @@
           const text = e.target.result;
           const parsed = JSON.parse(text);
           if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
-            alert('文件格式不正确：缺少 data 字段');
+            showAlert('导入失败', '文件格式不正确：缺少 data 字段');
             return;
           }
 
           const dataObj = parsed.data;
           const keys = Object.keys(dataObj);
           if (keys.length === 0) {
-            alert('文件中没有任何数据');
+            showAlert('导入失败', '文件中没有任何数据');
             return;
           }
 
           const bangKeys = keys.filter(k => k.startsWith(STORAGE_PREFIX));
           if (bangKeys.length === 0) {
-            alert('文件中没有找到本应用的数据（未找到 bang_ 开头的键）');
+            showAlert('导入失败', '文件中没有找到本应用的数据（未找到 bang_ 开头的键）');
             return;
           }
 
-          let summary = `将导入 ${bangKeys.length} 项数据，覆盖当前设备的对应数据。\n\n包含：\n`;
-          bangKeys.slice(0, 8).forEach(k => { summary += `- ${k}\n`; });
-          if (bangKeys.length > 8) summary += `- ……等共 ${bangKeys.length} 项\n`;
-          summary += '\n确定要导入吗？当前设备的相关数据会被覆盖，此操作不可撤销。';
+          let summary = `将导入 <b>${bangKeys.length}</b> 项数据，覆盖当前设备的对应数据。<br><br>包含：<br>`;
+          bangKeys.slice(0, 8).forEach(k => { summary += `- ${escapeHtml(k)}<br>`; });
+          if (bangKeys.length > 8) summary += `- ……等共 ${bangKeys.length} 项<br>`;
+          summary += '<br>确定要导入吗？当前设备的相关数据会被覆盖，此操作不可撤销。';
 
-          if (!confirm(summary)) return;
-
-          bangKeys.forEach(k => {
-            const v = dataObj[k];
-            localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+          showConfirm('导入全部数据', summary, function(ok) {
+            if (!ok) return;
+            bangKeys.forEach(k => {
+              const v = dataObj[k];
+              localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+            });
+            showAlert('导入成功', '数据已导入，页面将刷新以加载新数据。', function() {
+              location.reload();
+            });
           });
-
-          alert('导入成功，页面将刷新以加载新数据。');
-          location.reload();
         } catch (err) {
           console.error(err);
-          alert('导入失败：' + err.message);
+          showAlert('导入失败', '解析失败：' + escapeHtml(err.message));
         }
       };
       reader.onerror = function() {
-        alert('读取文件失败');
+        showAlert('读取失败', '读取文件失败');
       };
       reader.readAsText(file, 'UTF-8');
     }
@@ -477,19 +586,152 @@
       });
     }
 
+    // ===== 统一弹窗接口 =====
+    let pendingModal = null;
+
+    function showModal(payload, sourceWindow, requestId) {
+      closeGlobalModal(null, false);
+      pendingModal = { source: sourceWindow, requestId: requestId };
+
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.id = 'globalModalOverlay';
+
+      const title = payload.title || '提示';
+      const messageHtml = payload.messageHtml || escapeHtml(payload.message || '');
+      const showInput = payload.showInput === true;
+      const okText = payload.okText || '确定';
+      const cancelText = payload.cancelText || '取消';
+
+      overlay.innerHTML = `
+        <div class="modal-box">
+          <div class="modal-title">${escapeHtml(title)}</div>
+          <div class="modal-body">
+            ${messageHtml ? `<div class="modal-message">${messageHtml}</div>` : ''}
+            ${showInput ? `<input class="modal-input" type="text" inputmode="numeric" placeholder="${escapeHtml(payload.placeholder || '')}" value="${escapeHtml(payload.defaultValue || '')}">` : ''}
+            <div class="modal-actions">
+              ${payload.showCancel === false ? '' : `<button class="modal-btn-cancel">${escapeHtml(cancelText)}</button>`}
+              <button class="modal-btn-ok">${escapeHtml(okText)}</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const input = overlay.querySelector('.modal-input');
+      const btnOk = overlay.querySelector('.modal-btn-ok');
+      const btnCancel = overlay.querySelector('.modal-btn-cancel');
+
+      if (input) {
+        setTimeout(() => { input.focus(); input.select(); }, 50);
+      }
+
+      function finish(result) {
+        const pm = pendingModal;
+        pendingModal = null;
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+        if (pm && pm.source) {
+          try {
+            pm.source.postMessage({
+              type: 'modal-result',
+              requestId: pm.requestId,
+              value: result
+            }, '*');
+          } catch(e) {}
+        } else if (payload.onResult) {
+          payload.onResult(result);
+        }
+      }
+
+      function confirm() {
+        const val = input ? input.value : '';
+        finish({ confirmed: true, value: val });
+      }
+      function cancel() {
+        finish({ confirmed: false, value: null });
+      }
+
+      btnOk.addEventListener('click', confirm);
+      if (btnCancel) btnCancel.addEventListener('click', cancel);
+      overlay.addEventListener('click', function(e){
+        if (e.target === overlay) cancel();
+      });
+
+      function onKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+        else if (e.key === 'Enter') { e.preventDefault(); confirm(); }
+      }
+      document.addEventListener('keydown', onKey);
+    }
+
+    function closeGlobalModal(result, notify) {
+      const overlay = document.getElementById('globalModalOverlay');
+      if (overlay) overlay.remove();
+      const pm = pendingModal;
+      pendingModal = null;
+      if (pm && notify && pm.source) {
+        try {
+          pm.source.postMessage({
+            type: 'modal-result',
+            requestId: pm.requestId,
+            value: result
+          }, '*');
+        } catch(e) {}
+      }
+    }
+
+    // 父页面自己用的 alert / confirm
+    function showAlert(title, messageHtml, onClose) {
+      showModal({
+        title: title,
+        messageHtml: messageHtml,
+        showInput: false,
+        showCancel: false,
+        okText: '知道了',
+        onResult: function() { if (onClose) onClose(); }
+      }, null, '');
+    }
+
+    function showConfirm(title, messageHtml, onResult) {
+      showModal({
+        title: title,
+        messageHtml: messageHtml,
+        showInput: false,
+        showCancel: true,
+        okText: '确定',
+        cancelText: '取消',
+        onResult: function(result) {
+          // 关键修复：把 {confirmed, value} 转成布尔值再传给业务回调
+          if (onResult) onResult(!!(result && result.confirmed));
+        }
+      }, null, '');
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     window.addEventListener('message', function(e) {
       if (!e.data) return;
+
+      if (e.data.type === 'show-modal') {
+        showModal(e.data.payload || {}, e.source, e.data.requestId || '');
+        return;
+      }
 
       if (e.data.type === 'delete-account') {
         const name = e.data.account;
         if (!name) return;
         const idx = globalAccounts.indexOf(name);
         if (idx === -1) return;
-        if (!confirm(`确定删除统一账号「${name}」吗？所有模块中该账号的数据都会被清除。`)) return;
-        globalAccounts.splice(idx, 1);
-        saveGlobalAccounts(globalAccounts);
-        updateGlobalCount();
-        broadcastAccountsChanged();
+        showConfirm('删除统一账号', `确定删除统一账号「<b>${escapeHtml(name)}</b>」吗？<br>所有模块中该账号的数据都会被清除。`, function(ok) {
+          if (!ok) return;
+          globalAccounts.splice(idx, 1);
+          saveGlobalAccounts(globalAccounts);
+          updateGlobalCount();
+          broadcastAccountsChanged();
+        });
         return;
       }
 
