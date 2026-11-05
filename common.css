@@ -34,8 +34,8 @@ body {
   min-width: 0;
 }
 .stat-card .s-label { font-size: 10px; color: #999; font-weight: bold; white-space: nowrap; }
-.stat-card .s-value { font-size: 17px; font-weight: bold; color: #ea3690; line-height: 1.1; white-space: nowrap; }
-.stat-card.done .s-value { color: #f97316; }
+.stat-card .s-value { font-size: 17px; font-weight: bold; color: #fd8ec6; line-height: 1.1; white-space: nowrap; }
+.stat-card.done .s-value { color: #ff8f40; }
 
 /* ===== 工具栏按钮 ===== */
 .toolbar {
@@ -56,7 +56,7 @@ body {
   border-radius: 16px;
   border: 1px solid rgba(234,54,144,0.35);
   background: white;
-  color: #ea3690;
+  color: #fd8ec6;
   font-size: 12px;
   font-weight: bold;
   cursor: pointer;
@@ -66,7 +66,7 @@ body {
   white-space: nowrap;
 }
 .toolbar button:hover { background: rgba(234,54,144,0.06); }
-.toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
+.toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #ff8f40; }
 .toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
 
 /* ===== 表格容器：横向 + 纵向滚动，高度受限 ===== */
@@ -101,7 +101,7 @@ table {
 
 /* 普通表头：固定在 table-box 顶部 */
 thead th {
-  background: #ea3690;
+  background: #fd8ec6;
   color: #fff;
   font-weight: bold;
   padding: 6px 4px;
@@ -122,7 +122,7 @@ thead th:first-child {
   top: 0;
   left: 0;
   z-index: 999;
-  background: #ea3690;
+  background: #fd8ec6;
   text-align: left;
   padding-left: 6px;
   width: 88px;
@@ -253,7 +253,7 @@ input.score {
 }
 input.score::-webkit-outer-spin-button,
 input.score::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-input.score:focus { border-color: #ea3690; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
+input.score:focus { border-color: #fd8ec6; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
 input.score::placeholder { color: #ccc; font-weight: normal; text-align: center; }
 
 /* 底部合计数字 */

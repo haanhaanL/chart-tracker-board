@@ -13,15 +13,15 @@
     cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
     transition: 0.15s; font-size: 14px; color: transparent; font-weight: bold; user-select: none;
   }
-  .play-check:hover { border-color: #f97316; }
-  .play-check.checked { background: #f97316; border-color: #f97316; color: #fff; }
+  .play-check:hover { border-color: #ff8f40; }
+  .play-check.checked { background: #ff8f40; border-color: #ff8f40; color: #fff; }
   .del-btn {
     width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(231,76,60,0.35);
-    background: white; color: #e74c3c; font-size: 14px; line-height: 1; cursor: pointer;
+    background: white; color: #ff8f40; font-size: 14px; line-height: 1; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;
     font-family: inherit; padding: 0;
   }
-  .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #e74c3c; }
+  .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #ff8f40; }
 </style>
 </head>
 <body>
@@ -30,7 +30,7 @@
   </div>
 
   <div class="toolbar">
-    <button id="clearDataBtn" class="danger">清空数据</button>
+    <button id="clearDataBtn" class="danger">重置任务</button>
   </div>
 
   <div class="table-box" id="tableBox"></div>
@@ -159,7 +159,7 @@
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr>
-        <td class="account-cell" style="color:#ea3690;">合计</td>
+        <td class="account-cell" style="color:#fd8ec6;">合计</td>
         ${footCells}<td></td>
       </tr></tfoot>
     </table>`;

@@ -8,44 +8,44 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  body { display: block; background: #faf7f9; min-height: 100vh; padding: 6px; overflow: auto; }
+  body { display: block; background: linear-gradient(135deg, #ffedf6, #fff8f4);; min-height: 100vh; padding: 6px; overflow: auto; }
   body::after {
     content: ""; position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 99998;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='120'><text x='20' y='70' font-size='28' font-weight='900' fill='rgba(234,54,144,0.06)' transform='rotate(-25 100 60)'>mzc051</text></svg>");
     background-repeat: repeat; background-size: 200px 120px;
   }
   .header-area { max-width: 1600px; margin: 0 auto 6px; text-align: center; padding: 0 4px; }
-  .header-area h1 { color: #ea3690; font-size: 18px; margin: 22px 0 10px; }
+  .header-area h1 { color: #fd8ec6; font-size: 18px; margin: 22px 0 10px; }
   .header-area .subtitle { color: #999; font-size: 12px; margin-bottom: 6px; }
   .auth-row { max-width: 1600px; margin: 0 auto 12px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 0 4px; }
-  .auth-text-btn { background: transparent; border: none; color: #ea3690; font-size: 13px; font-weight: bold; cursor: pointer; padding: 2px 0; font-family: inherit; transition: 0.15s; white-space: nowrap; }
+  .auth-text-btn { background: transparent; border: none; color: #fd8ec6; font-size: 13px; font-weight: bold; cursor: pointer; padding: 2px 0; font-family: inherit; transition: 0.15s; white-space: nowrap; }
   .auth-text-btn:hover { text-decoration: underline; }
-  .auth-text-btn.danger { color: #e74c3c; }
+  .auth-text-btn.danger { color: #ff8f40; }
   .auth-user { font-size: 12px; color: #555; font-weight: bold; white-space: nowrap; }
-  .auth-user b { color: #ea3690; }
+  .auth-user b { color: #fd8ec6; }
   .global-toolbar, .backup-toolbar {
     max-width: 1600px; margin: 0 auto 14px; background: #fff; border-radius: 10px;
     box-shadow: 0 3px 10px rgba(234,54,144,0.07); border: 1px solid rgba(234,54,144,0.10);
     padding: 10px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   }
-  .global-toolbar .label, .backup-toolbar .label { font-size: 12px; font-weight: bold; color: #ea3690; white-space: nowrap; margin-right: 2px; }
+  .global-toolbar .label, .backup-toolbar .label { font-size: 12px; font-weight: bold; color: #fd8ec6; white-space: nowrap; margin-right: 2px; }
   .global-toolbar input.new-account {
     flex: 1 1 260px; min-width: 200px; height: 32px; padding: 0 10px;
     border: 1px dashed #f0d6e4; border-radius: 8px; background: #fdf7fa; color: #555;
     font-size: 12px; font-family: inherit; outline: none; transition: 0.15s;
   }
-  .global-toolbar input.new-account:focus { border-color: #ea3690; border-style: solid; background: #fff; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
+  .global-toolbar input.new-account:focus { border-color: #fd8ec6; border-style: solid; background: #fff; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
   .global-toolbar input.new-account::placeholder { color: #bbb; }
   .global-toolbar button, .backup-toolbar button {
     height: 32px; padding: 0 14px; border-radius: 16px; border: 1px solid rgba(234,54,144,0.35);
-    background: white; color: #ea3690; font-size: 12px; font-weight: bold; cursor: pointer;
+    background: white; color: #fd8ec6; font-size: 12px; font-weight: bold; cursor: pointer;
     transition: all 0.2s ease; outline: none; font-family: inherit; white-space: nowrap;
   }
   .global-toolbar button:hover, .backup-toolbar button:hover { background: rgba(234,54,144,0.06); }
-  .global-toolbar button.danger, .backup-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
+  .global-toolbar button.danger, .backup-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #ff8f40; }
   .global-toolbar button.danger:hover, .backup-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
   .global-toolbar .count { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
-  .global-toolbar .count b { color: #ea3690; }
+  .global-toolbar .count b { color: #fd8ec6; }
   .backup-toolbar button:disabled { opacity: 0.45; cursor: not-allowed; border-color: #e0e0e0; color: #aaa; }
   .backup-toolbar .hint { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
   .module-tabs {
@@ -55,10 +55,10 @@
   }
   .module-tab-btn {
     flex: 1; min-width: 0; padding: 7px 6px; border-radius: 15px; border: none; background: transparent;
-    color: #ea3690; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
+    color: #fd8ec6; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
     outline: none; font-family: inherit; white-space: nowrap;
   }
-  .module-tab-btn.active { background: #ea3690; color: #fff; box-shadow: 0 2px 6px rgba(234,54,144,0.25); }
+  .module-tab-btn.active { background: linear-gradient(135deg, #fd8ec6, #ff8f40); color: #fff; box-shadow: 0 2px 6px rgba(234,54,144,0.25); }
   .module-grid {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%;
     max-width: 1600px; margin: 0 auto 40px; align-items: stretch;
@@ -68,7 +68,7 @@
     border: 1px solid rgba(234,54,144,0.10); overflow: hidden; display: flex;
     flex-direction: column; min-width: 0;
   }
-  .module-card .module-title { background: #ea3690; color: #fff; font-size: 13px; font-weight: bold; padding: 7px 14px; text-align: center; flex-shrink: 0; }
+  .module-card .module-title { background: linear-gradient(135deg, #fd8ec6, #ff8f40); color: #fff; font-size: 13px; font-weight: bold; padding: 7px 14px; text-align: center; flex-shrink: 0; }
   .module-card iframe { width: 100%; border: 0; display: block; background: #fff; height: 420px; min-height: 120px; }
   @media (max-width: 900px) {
     .header-area h1 { font-size: 16px; margin: 16px 0 8px; }
@@ -95,10 +95,10 @@
     overflow: hidden; animation: popIn 0.18s ease;
   }
   @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .modal-title { background: transparent; color: #ea3690; font-size: 15px; font-weight: bold; padding: 16px 16px 0 16px; text-align: center; }
+  .modal-title { background: transparent; color: #fd8ec6; font-size: 15px; font-weight: bold; padding: 16px 16px 0 16px; text-align: center; }
   .modal-body { padding: 12px 16px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
   .modal-message { font-size: 12px; color: #666; line-height: 1.6; text-align: center; }
-  .modal-message b { color: #ea3690; font-weight: bold; }
+  .modal-message b { color: #fd8ec6; font-weight: bold; }
   .modal-message .hint { font-size: 11px; color: #999; }
   .modal-field { display: flex; flex-direction: column; gap: 4px; }
   .modal-field label { font-size: 11px; color: #999; font-weight: bold; padding-left: 4px; }
@@ -106,18 +106,18 @@
     width: 100%; height: 38px; padding: 0 12px; border: 1px solid #f0d6e4; border-radius: 8px;
     background: #FFFFFF; color: #333; font-size: 15px; font-family: inherit; outline: none; transition: 0.15s;
   }
-  .modal-input:focus { border-color: #ea3690; background: #fff; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
+  .modal-input:focus { border-color: #fd8ec6; background: #fff; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
   .modal-input::placeholder { color: #ccc; font-weight: normal; }
   .modal-actions { display: flex; gap: 8px; }
   .modal-actions button {
     flex: 1; height: 38px; border-radius: 19px; font-size: 13px; font-weight: bold;
     cursor: pointer; font-family: inherit; transition: all 0.2s ease; outline: none;
   }
-  .modal-btn-cancel { border: 1px solid rgba(234,54,144,0.35); background: #fff; color: #ea3690; }
+  .modal-btn-cancel { border: 1px solid rgba(234,54,144,0.35); background: #fff; color: #fd8ec6; }
   .modal-btn-cancel:hover { background: rgba(234,54,144,0.06); }
-  .modal-btn-ok { border: 1px solid #ea3690; background: #ea3690; color: #fff; box-shadow: 0 3px 10px rgba(234,54,144,0.25); }
+  .modal-btn-ok { border: 1px solid #fd8ec6; background: linear-gradient(135deg, #fd8ec6, #ff8f40); color: #fff; box-shadow: 0 3px 10px rgba(234,54,144,0.25); }
   .modal-btn-ok:hover { background: #d42f80; border-color: #d42f80; }
-  .modal-btn-secondary { border: 1px solid rgba(234,54,144,0.35); background: #fff; color: #ea3690; }
+  .modal-btn-secondary { border: 1px solid rgba(234,54,144,0.35); background: #fff; color: #fd8ec6; }
   .modal-btn-secondary:hover { background: rgba(234,54,144,0.06); }
 </style>
 </head>
@@ -171,7 +171,7 @@
       <iframe src="youni.html" title="由你积分"></iframe>
     </div>
     <div class="module-card" data-module="coin">
-      <div class="module-title">金币（>48w）</div>
+      <div class="module-title">金币（>45w）</div>
       <iframe src="coin.html" title="金币"></iframe>
     </div>
     <div class="module-card" data-module="play">
@@ -211,8 +211,8 @@
       if (!el) return;
       el.textContent = text;
       if (type === 'ok') el.style.color = '#22c55e';
-      else if (type === 'warn') el.style.color = '#f97316';
-      else if (type === 'error') el.style.color = '#e74c3c';
+      else if (type === 'warn') el.style.color = '#ff8f40';
+      else if (type === 'error') el.style.color = '#ff8f40';
       else el.style.color = '#999';
     }
 
@@ -774,7 +774,7 @@
     const MODULE_TITLES = {
       power: '电力（盲盒CD：4h）',
       youni: '由你积分（>112）',
-      coin: '金币（>48w）',
+      coin: '金币（>45w）',
       play: '刷播'
     };
 
@@ -860,7 +860,7 @@
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#faf7f9';
         ctx.fillRect(0, 0, totalW, totalH);
-        ctx.fillStyle = '#ea3690';
+        ctx.fillStyle = '#fd8ec6';
         ctx.font = `bold ${16 * scale}px system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
@@ -882,7 +882,7 @@
           ctx.lineWidth = 1 * scale;
           roundRect(ctx, x, y, colW, rowH, 6 * scale);
           ctx.stroke();
-          ctx.fillStyle = '#ea3690';
+          ctx.fillStyle = '#fd8ec6';
           roundRectTop(ctx, x, y, colW, cardTitleH, 6 * scale);
           ctx.fill();
           ctx.fillStyle = '#fff';
@@ -998,7 +998,7 @@
     const IFRAME_MODULE_MAP = {
       '电力（盲盒CD：4h）': 'power',
       '由你积分（>112）': 'youni',
-      '金币（>48w）': 'coin',
+      '金币（>45w）': 'coin',
       '刷播': 'play'
     };
     const MODULE_IFRAME_MAP = {};
