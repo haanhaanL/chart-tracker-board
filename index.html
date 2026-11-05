@@ -3,27 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>穆祉丞051</title>
+<title>打榜数据录入 · 汇总</title>
 <link rel="stylesheet" href="common.css">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  body {
-    display: block;
-    background: #faf7f9;
-    min-height: 100vh;
-    padding: 6px;
-    overflow: auto;
-  }
+  body { display: block; background: #faf7f9; min-height: 100vh; padding: 6px; overflow: auto; }
   body::after {
-    content: "";
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    pointer-events: none;
-    z-index: 99998;
+    content: ""; position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 99998;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='120'><text x='20' y='70' font-size='28' font-weight='900' fill='rgba(234,54,144,0.06)' transform='rotate(-25 100 60)'>mzc051</text></svg>");
-    background-repeat: repeat;
-    background-size: 200px 120px;
+    background-repeat: repeat; background-size: 200px 120px;
   }
   .header-area { max-width: 1600px; margin: 0 auto 6px; text-align: center; padding: 0 4px; }
   .header-area h1 { color: #ea3690; font-size: 18px; margin: 22px 0 10px; }
@@ -135,8 +124,8 @@
 <body>
 
   <div class="header-area">
-    <h1 id="exportTitle">穆祉丞051</h1>
-    <div class="subtitle" id="exportSubtitle">专注EP</div>
+    <h1 id="exportTitle">打榜数据录入</h1>
+    <div class="subtitle" id="exportSubtitle">账号统一管理 · 多模块独立数据</div>
   </div>
 
   <div class="auth-row" id="authBar">
@@ -441,6 +430,7 @@
       }
     }
 
+    // 登录/刷新自动对比：仅本地新时弹上传询问；云端新/一致/本地无时间戳静默用云端
     async function pullFromCloud(silent) {
       if (!cloudReady || !supabaseClient || !currentUser) return;
       if (syncInProgress) return;
@@ -460,9 +450,15 @@
         cloudLastUpdatedAt = cloudUpdatedAt;
         const cloudTs = cloudUpdatedAt ? new Date(cloudUpdatedAt).getTime() : 0;
         const localTs = getLocalChangeTs();
-        if (localTs <= 0) { applyCloudData(cloudData, cloudUpdatedAt); return; }
-        if (localTs === cloudTs) { applyCloudData(cloudData, cloudUpdatedAt); return; }
-        showSyncChoice({ cloudTs, localTs, cloudUpdatedAt, cloudData });
+
+        // 本地无时间戳 / 云端新 / 一致 → 静默用云端
+        if (localTs <= 0 || localTs <= cloudTs) {
+          applyCloudData(cloudData, cloudUpdatedAt);
+          return;
+        }
+
+        // 仅本地新 → 弹上传询问
+        showUploadPrompt({ localTs, cloudTs, cloudUpdatedAt, cloudData });
       } catch (err) {
         console.error(err);
         setCloudStatus('云端同步失败', 'error');
@@ -471,65 +467,25 @@
       }
     }
 
-    function showSyncChoice(ctx) {
-      const { cloudTs, localTs, cloudUpdatedAt, cloudData } = ctx;
-      const localIsNewer = localTs > cloudTs;
-      const cloudLine = `云端最后保存：${formatTs(cloudTs)}${!localIsNewer ? '（最新数据）' : ''}`;
-      const localLine = `本地最后修改：${formatTs(localTs)}${localIsNewer ? '（最新数据）' : ''}`;
-      const html = `${cloudLine}<br>${localLine}<br><br>请选择使用哪一份数据（二选一）：`;
+    // 本地新：询问是否上传到云端
+    function showUploadPrompt(ctx) {
+      const { localTs, cloudTs } = ctx;
+      const html = `本地最后修改：${formatTs(localTs)}<br>云端最后保存：${formatTs(cloudTs)}<br><br>本地比云端新，是否上传到云端？`;
       showModal({
-        title: '数据版本对比',
+        title: '本地数据有更新',
         messageHtml: html,
-        showCancel: false,
-        forceChoose: true,
-        customActions: [
-          { id: 'use-cloud', text: '用云端（覆盖本地）', cls: 'modal-btn-secondary' },
-          { id: 'use-local', text: '用本地（上传）', cls: 'modal-btn-ok' }
-        ],
+        showCancel: true,
+        forceChoose: false,
+        okText: '上传到云端',
+        cancelText: '取消',
         onResult: function(result) {
-          if (!result) return;
-          if (result.action === 'use-cloud') handleUseCloud(ctx);
-          else if (result.action === 'use-local') handleUseLocal(ctx);
+          if (result && result.confirmed) {
+            doUploadLocal();
+          } else {
+            setCloudStatus('未同步，下次登录会再次提示', 'warn');
+          }
         }
       }, null, '');
-    }
-
-    function handleUseCloud(ctx) {
-      const { cloudTs, localTs, cloudUpdatedAt, cloudData } = ctx;
-      const localIsNewer = localTs > cloudTs;
-      if (localIsNewer) {
-        confirmSecond({
-          title: '确认使用云端覆盖本地？',
-          line1: '当前本地数据较新',
-          line2: '覆盖后，本地数据将丢失，且不可恢复',
-          cancelText: '取消', okText: '仍用云端',
-          onOk: function() { applyCloudData(cloudData, cloudUpdatedAt); }
-        });
-      } else {
-        confirmSecond({
-          title: '确认使用云端数据？',
-          line1: '当前云端数据较新',
-          line2: '使用该云端数据，本地数据将丢失，且不可恢复',
-          cancelText: '取消', okText: '使用云端',
-          onOk: function() { applyCloudData(cloudData, cloudUpdatedAt); }
-        });
-      }
-    }
-
-    function handleUseLocal(ctx) {
-      const { cloudTs, localTs } = ctx;
-      const localIsNewer = localTs > cloudTs;
-      if (localIsNewer) {
-        doUploadLocal();
-      } else {
-        confirmSecond({
-          title: '确认使用本地覆盖云端？',
-          line1: '当前云端数据较新',
-          line2: '覆盖后，云端数据将丢失，且不可恢复',
-          cancelText: '取消', okText: '仍用本地',
-          onOk: function() { doUploadLocal(); }
-        });
-      }
     }
 
     async function doUploadLocal() {
@@ -541,6 +497,32 @@
       }
     }
 
+    // 手动云端读取：仅本地新时确认，其他直接读
+    async function handleManualLoad() {
+      if (!cloudReady || !currentUser) { showAlert('未登录', '请先登录账号。'); return; }
+      try {
+        const { data } = await supabaseClient
+          .from('bang_data').select('updated_at').eq('user_id', currentUser.id).limit(1);
+        const cloudTs = (data && data[0] && data[0].updated_at)
+          ? new Date(data[0].updated_at).getTime() : 0;
+        const localTs = getLocalChangeTs();
+        if (localTs > cloudTs && cloudTs > 0) {
+          confirmSecond({
+            title: '确认使用云端覆盖本地？',
+            line1: '当前本地数据较新',
+            line2: '覆盖后，本地数据将丢失，且不可恢复',
+            cancelText: '取消', okText: '仍用云端',
+            onOk: function() { loadFromCloud(false); }
+          });
+        } else {
+          loadFromCloud(false);
+        }
+      } catch (err) {
+        showAlert('读取失败', escapeHtml(err.message || String(err)));
+      }
+    }
+
+    // 二次确认（手动读取本地新时用）
     function confirmSecond(opts) {
       showModal({
         title: opts.title,
@@ -587,30 +569,6 @@
         console.error(err);
         setCloudStatus('读取失败', 'error');
         if (!silent) showAlert('读取失败', escapeHtml(err.message || String(err)));
-      }
-    }
-
-    async function handleManualLoad() {
-      if (!cloudReady || !currentUser) { showAlert('未登录', '请先登录账号。'); return; }
-      try {
-        const { data } = await supabaseClient
-          .from('bang_data').select('updated_at').eq('user_id', currentUser.id).limit(1);
-        const cloudTs = (data && data[0] && data[0].updated_at)
-          ? new Date(data[0].updated_at).getTime() : 0;
-        const localTs = getLocalChangeTs();
-        if (localTs > cloudTs && cloudTs > 0) {
-          confirmSecond({
-            title: '确认使用云端覆盖本地？',
-            line1: '当前本地数据较新',
-            line2: '覆盖后，本地数据将丢失，且不可恢复',
-            cancelText: '取消', okText: '仍用云端',
-            onOk: function() { loadFromCloud(false); }
-          });
-        } else {
-          loadFromCloud(false);
-        }
-      } catch (err) {
-        showAlert('读取失败', escapeHtml(err.message || String(err)));
       }
     }
 
@@ -749,12 +707,12 @@
     function exportAllData() {
       const payload = collectLocalData();
       if (Object.keys(payload).length === 0) { showAlert('提示', '当前没有任何可导出的数据'); return; }
-      const exportObj = { app: '穆祉丞051', version: 1, exportedAt: new Date().toISOString(), data: payload };
+      const exportObj = { app: '打榜数据录入', version: 1, exportedAt: new Date().toISOString(), data: payload };
       const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `穆祉丞051_${todayStr()}.json`;
+      a.download = `打榜全部数据_${todayStr()}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }

@@ -45,6 +45,7 @@
 
   <div class="toolbar">
     <button id="clearDataBtn" class="danger">清空数据</button>
+    <button id="resetTasksBtn" class="danger">重置任务</button>
   </div>
 
   <div class="table-box" id="tableBox"></div>
@@ -253,12 +254,23 @@
     let has = false;
     ACCOUNTS.forEach(a => {
       if (data[a] !== undefined && String(data[a]).trim() !== '') has = true;
-      if (daily[a]) has = true;
     });
     if (!has) { alert('当前所有金币数据已经是空的'); return; }
-    if (!confirm('确定要清空所有账号的金币数据和每日勾选吗？账号列表将保留。')) return;
-    ACCOUNTS.forEach(a => { data[a] = ''; daily[a] = false; });
+    if (!confirm('确定要清空所有账号的金币数据吗？每日任务勾选会保留。')) return;
+    ACCOUNTS.forEach(a => { data[a] = ''; });
     saveData();
+    notifyDirty();
+    renderAll();
+  }
+
+  function resetTasks() {
+    if (!ACCOUNTS.length) { alert('当前没有账号，无需重置任务'); return; }
+    let has = false;
+    ACCOUNTS.forEach(a => { if (daily[a]) has = true; });
+    if (!has) { alert('当前所有每日任务勾选已经是空的'); return; }
+    if (!confirm('确定要重置所有账号的每日任务勾选吗？金币数据会保留。')) return;
+    ACCOUNTS.forEach(a => { daily[a] = false; });
+    dailyDate = todayStr();
     saveDaily();
     notifyDirty();
     renderAll();
@@ -358,6 +370,7 @@
       renderAll();
     }
     document.getElementById('clearDataBtn').addEventListener('click', clearData);
+    document.getElementById('resetTasksBtn').addEventListener('click', resetTasks);
     setInterval(() => { if (checkDailyReset()) clearDailyChecksDom(); }, 60 * 1000);
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden) { if (checkDailyReset()) clearDailyChecksDom(); }
