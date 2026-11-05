@@ -81,7 +81,7 @@
 
   input.remark-input {
     width: 100%;
-    max-width: 110px;
+    max-width: 100px;
     height: 26px;
     padding: 0 6px;
     text-align: left;
@@ -99,6 +99,32 @@
     box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
   }
   input.remark-input::placeholder { color: #ccc; }
+
+  input.power-input {
+    width: 100%;
+    max-width: 70px;
+    height: 26px;
+    padding: 0 4px;
+    text-align: center;
+    background: white;
+    border: 1px solid #f0d6e4;
+    border-radius: 6px;
+    color: #333;
+    font-size: 11px;
+    font-weight: bold;
+    font-family: inherit;
+    outline: none;
+    transition: 0.15s;
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input.power-input::-webkit-outer-spin-button,
+  input.power-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input.power-input:focus {
+    border-color: #ea3690;
+    box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
+  }
+  input.power-input::placeholder { color: #ccc; font-weight: normal; }
 
   .disable-check {
     width: 20px;
@@ -132,7 +158,8 @@
     color: #bbb;
     text-decoration: line-through;
   }
-  tr.row-disabled .remark-input {
+  tr.row-disabled .remark-input,
+  tr.row-disabled .power-input {
     background: #fafafa;
     color: #bbb;
   }
@@ -157,13 +184,15 @@
     cursor: default;
   }
 
-  .stats-row.two {
-    grid-template-columns: repeat(2, 1fr);
+  .stats-row.three {
+    grid-template-columns: repeat(3, 1fr);
   }
 </style>
 </head>
 <body>
-  <div class="stats-row two">
+  <!-- 电力总和放最左边 -->
+  <div class="stats-row three">
+    <div class="stat-card"><div class="s-label">电力总和</div><div class="s-value" id="powerSum">0</div></div>
     <div class="stat-card done"><div class="s-label">已完成账号</div><div class="s-value" id="powerDoneAccounts">0 / 0</div></div>
     <div class="stat-card done"><div class="s-label">下一轮时间</div><div class="s-value" id="powerNextTime" style="font-size:13px;">—</div></div>
   </div>
@@ -187,7 +216,6 @@
   let dailyDate = '';
   let timerInterval = null;
 
-  // 待处理的弹窗请求
   let modalRequestCounter = 0;
   const pendingModalResolvers = {};
 
@@ -253,11 +281,9 @@
     }
   }
 
-  // 向父页面请求显示弹窗，返回 Promise
   function requestModal(payload) {
     return new Promise(resolve => {
       if (!window.parent || window.parent === window) {
-        // 不在 iframe 里，退化为 alert/prompt
         if (payload.showInput !== false) {
           const v = prompt(payload.message || '', payload.defaultValue || '');
           resolve(v === null ? { confirmed: false, value: null } : { confirmed: true, value: v });
@@ -347,6 +373,8 @@
       }
       if (typeof records[a].disabled !== 'boolean') records[a].disabled = false;
       if (typeof records[a].remark !== 'string') records[a].remark = '';
+      if (typeof records[a].teamPower !== 'string') records[a].teamPower = '';
+      if (typeof records[a].personalPower !== 'string') records[a].personalPower = '';
     });
     Object.keys(records).forEach(a => { if (!ACCOUNTS.includes(a)) delete records[a]; });
     ACCOUNTS = [...new Set(ACCOUNTS)];
@@ -385,17 +413,21 @@
     const box = document.getElementById('powerTableBox');
     let rows = '';
     if (ACCOUNTS.length === 0) {
-      rows = `<tr class="empty-row"><td colspan="7">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
+      rows = `<tr class="empty-row"><td colspan="9">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
     } else {
       rows = ACCOUNTS.map(a => {
         const rec = records[a] || {};
         const disabled = !!rec.disabled;
         const remark = rec.remark || '';
+        const teamPower = rec.teamPower || '';
+        const personalPower = rec.personalPower || '';
         return `<tr data-acc="${escapeHtml(a)}" class="${disabled ? 'row-disabled' : ''}">
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${escapeHtml(a)}</span></td>
           <td>${dailyCheckHtml(a, '安卓', !!rec['安卓'], disabled)}</td>
           <td>${dailyCheckHtml(a, '苹果', !!rec['苹果'], disabled)}</td>
           <td>${sharedHtml(a, rec[SHARED] || { done: false, ts: 0 }, disabled)}</td>
+          <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="teamPower" value="${escapeHtml(teamPower)}"></td>
+          <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="personalPower" value="${escapeHtml(personalPower)}"></td>
           <td><input class="remark-input" type="text" placeholder="备注" data-acc="${escapeHtml(a)}" value="${escapeHtml(remark)}"></td>
           <td><div class="disable-check ${disabled ? 'checked' : ''}" data-acc="${escapeHtml(a)}" title="${disabled ? '取消无法使用' : '标记为无法使用'}">${disabled ? '✓' : ''}</div></td>
           <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
@@ -405,29 +437,35 @@
 
     box.innerHTML = `<table>
       <colgroup>
-        <col style="width:84px">
-        <col style="width:12%">
-        <col style="width:12%">
-        <col style="width:18%">
-        <col style="width:22%">
-        <col style="width:12%">
-        <col style="width:34px">
+        <col style="width:88px">
+        <col style="width:auto">
+        <col style="width:auto">
+        <col style="width:auto">
+        <col style="width:auto">
+        <col style="width:auto">
+        <col style="width:auto">
+        <col style="width:auto">
+        <col style="width:36px">
       </colgroup>
       <thead><tr>
         <th style="text-align:left;padding-left:6px;">账号</th>
         <th>安卓</th>
         <th>苹果</th>
         <th>盲盒</th>
+        <th>团建电力</th>
+        <th>个人电力</th>
         <th>备注</th>
         <th>无法使用</th>
         <th>操作</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr>
-        <td class="account-cell" style="color:#ea3690;">已完成</td>
+        <td class="account-cell" style="color:#ea3690;">合计</td>
         <td><div class="col-total" id="pct-android">0 / 0</div></td>
         <td><div class="col-total" id="pct-ios">0 / 0</div></td>
         <td><div class="col-total" id="pct-shared">0 / 0</div></td>
+        <td><div class="col-total" id="sum-team">0</div></td>
+        <td><div class="col-total" id="sum-personal">0</div></td>
         <td></td><td></td><td></td>
       </tr></tfoot>
     </table>`;
@@ -449,6 +487,18 @@
       el.addEventListener('click', function(e){
         e.stopPropagation();
         manualEditSharedTime(this.dataset.acc);
+      });
+    });
+
+    box.querySelectorAll('input.power-input').forEach(inp => {
+      inp.addEventListener('input', function(){
+        const acc = this.dataset.acc;
+        const field = this.dataset.field;
+        if (!records[acc]) return;
+        records[acc][field] = this.value;
+        savePowerRecords();
+        updatePowerStats();
+        notifyResize();
       });
     });
 
@@ -516,7 +566,6 @@
     renderPower();
   }
 
-  // ===== 手动修改盲盒完成时间（请求父页面弹窗） =====
   async function manualEditSharedTime(acc) {
     const rec = records[acc];
     if (!rec || rec.disabled) return;
@@ -615,6 +664,19 @@
       else { nextEl.textContent = activeAccounts.length > 0 ? '全部可做' : '—'; nextEl.style.color = '#22c55e'; }
     }
 
+    let teamSum = 0, personalSum = 0;
+    ACCOUNTS.forEach(a => {
+      const rec = records[a] || {};
+      const t = parseInt(rec.teamPower, 10);
+      const p = parseInt(rec.personalPower, 10);
+      if (!isNaN(t)) teamSum += t;
+      if (!isNaN(p)) personalSum += p;
+    });
+    const totalSum = teamSum + personalSum;
+
+    const sumEl = document.getElementById('powerSum');
+    if (sumEl) sumEl.textContent = totalSum.toLocaleString();
+
     const androidDone = activeAccounts.filter(a => records[a] && records[a]['安卓']).length;
     const iosDone = activeAccounts.filter(a => records[a] && records[a]['苹果']).length;
     const sharedDone = activeAccounts.filter(a => records[a] && records[a][SHARED] && records[a][SHARED].done).length;
@@ -625,6 +687,11 @@
     if (ei) ei.textContent = `${iosDone} / ${activeAccounts.length}`;
     const es = document.getElementById('pct-shared');
     if (es) es.textContent = `${sharedDone} / ${activeAccounts.length}`;
+
+    const st = document.getElementById('sum-team');
+    if (st) st.textContent = teamSum.toLocaleString();
+    const sp = document.getElementById('sum-personal');
+    if (sp) sp.textContent = personalSum.toLocaleString();
 
     notifyResize();
   }
@@ -664,34 +731,58 @@
   }
 
   function clearPowerData() {
-    if (!ACCOUNTS.length) { alert('当前没有账号，无需清空数据'); return; }
+    if (!ACCOUNTS.length) { showAlert('提示', '当前没有账号，无需清空数据'); return; }
     let has = false;
     ACCOUNTS.forEach(a => {
       DAILY_PLATFORMS.forEach(p => { if (records[a] && records[a][p]) has = true; });
       const r = records[a] && records[a][SHARED];
       if (r && (r.done || r.ts)) has = true;
+      if (records[a] && (records[a].teamPower || records[a].personalPower)) has = true;
     });
-    if (!has) { alert('当前所有电力记录已经是空的'); return; }
-    if (!confirm('确定要清空电力模块的所有勾选记录吗？账号列表、备注、无法使用标记会保留。')) return;
-    ACCOUNTS.forEach(a => {
-      if (!records[a]) records[a] = {};
-      DAILY_PLATFORMS.forEach(p => { records[a][p] = false; });
-      records[a][SHARED] = { done: false, ts: 0 };
+    if (!has) { showAlert('提示', '当前所有电力记录已经是空的'); return; }
+    showConfirm('清空数据', '确定要清空电力模块的所有勾选和数值记录吗？账号列表、备注、无法使用标记会保留。', function(ok) {
+      if (!ok) return;
+      ACCOUNTS.forEach(a => {
+        if (!records[a]) records[a] = {};
+        DAILY_PLATFORMS.forEach(p => { records[a][p] = false; });
+        records[a][SHARED] = { done: false, ts: 0 };
+        records[a].teamPower = '';
+        records[a].personalPower = '';
+      });
+      dailyDate = todayStr();
+      savePowerRecords();
+      renderPower();
     });
-    dailyDate = todayStr();
-    savePowerRecords();
-    renderPower();
   }
 
   function resetPowerRound() {
-    if (!ACCOUNTS.length) { alert('当前没有账号'); return; }
-    if (!confirm('确定要重置所有账号的盲盒电力轮次吗？盲盒勾选和计时会被清除，安卓/苹果每日任务不受影响。')) return;
-    ACCOUNTS.forEach(a => {
-      if (!records[a]) records[a] = {};
-      records[a][SHARED] = { done: false, ts: 0 };
+    if (!ACCOUNTS.length) { showAlert('提示', '当前没有账号'); return; }
+    showConfirm('重置轮次', '确定要重置所有账号的盲盒电力轮次吗？盲盒勾选和计时会被清除，安卓/苹果每日任务、团建电力、个人电力不受影响。', function(ok) {
+      if (!ok) return;
+      ACCOUNTS.forEach(a => {
+        if (!records[a]) records[a] = {};
+        records[a][SHARED] = { done: false, ts: 0 };
+      });
+      savePowerRecords();
+      renderPower();
     });
-    savePowerRecords();
-    renderPower();
+  }
+
+  function showAlert(title, message) {
+    if (window.parent && window.parent !== window) {
+      requestModal({ title: title, messageHtml: escapeHtml(message), showInput: false, showCancel: false, okText: '知道了' });
+    } else {
+      alert(message);
+    }
+  }
+  function showConfirm(title, message, onResult) {
+    if (window.parent && window.parent !== window) {
+      requestModal({ title: title, messageHtml: escapeHtml(message), showInput: false, showCancel: true, okText: '确定', cancelText: '取消' }).then(r => {
+        onResult(!!(r && r.confirmed));
+      });
+    } else {
+      onResult(confirm(message));
+    }
   }
 
   window.addEventListener('message', function(e) {

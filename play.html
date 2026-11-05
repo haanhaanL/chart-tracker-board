@@ -10,7 +10,6 @@
     grid-template-columns: 1fr;
   }
 
-  /* 刷播勾选框 */
   .play-check {
     width: 22px;
     height: 22px;
@@ -57,7 +56,6 @@
   const DATA_STORAGE_KEY = 'bang_play_state';
 
   let ACCOUNTS = [];
-  // data[账号][平台] = true/false
   let data = {};
 
   function escapeHtml(s) {
@@ -138,13 +136,15 @@
       }).join('');
     }
 
+    const footCells = PLATFORMS.map((_, i) => `<td><div class="col-total" id="pct-${i}">0 / 0</div></td>`).join('');
+
     box.innerHTML = `<table>
       <colgroup>
-        <col style="width:100px">
-        <col style="width:20%">
-        <col style="width:20%">
-        <col style="width:20%">
-        <col style="width:40px">
+        <col style="width:88px">
+        <col style="width:auto">
+        <col style="width:auto">
+        <col style="width:auto">
+        <col style="width:36px">
       </colgroup>
       <thead><tr>
         <th style="text-align:left;padding-left:6px;">账号</th>
@@ -152,6 +152,11 @@
         <th>操作</th>
       </tr></thead>
       <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td class="account-cell" style="color:#ea3690;">合计</td>
+        ${footCells}
+        <td></td>
+      </tr></tfoot>
     </table>`;
 
     box.querySelectorAll('.play-check').forEach(el => {
@@ -187,6 +192,16 @@
 
     const el = document.getElementById('totalDone');
     if (el) el.textContent = `${done} / ${total}`;
+
+    // 表尾各平台完成数
+    PLATFORMS.forEach((pf, idx) => {
+      let c = 0;
+      ACCOUNTS.forEach(a => {
+        if (data[a] && data[a][pf]) c++;
+      });
+      const foot = document.getElementById(`pct-${idx}`);
+      if (foot) foot.textContent = `${c} / ${ACCOUNTS.length}`;
+    });
 
     notifyResize();
   }

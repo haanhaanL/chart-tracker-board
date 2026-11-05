@@ -6,8 +6,8 @@
 <title>金币</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  .stats-row.single {
-    grid-template-columns: 1fr;
+  .stats-row.two {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .coin-cell {
@@ -51,6 +51,25 @@
     flex-shrink: 0;
   }
 
+  .daily-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid #f0d6e4;
+    background: white;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.15s;
+    font-size: 14px;
+    color: transparent;
+    font-weight: bold;
+    user-select: none;
+  }
+  .daily-check:hover { border-color: #f97316; }
+  .daily-check.checked { background: #f97316; border-color: #f97316; color: #fff; }
+
   .del-btn {
     width: 24px; height: 24px; border-radius: 50%;
     border: 1px solid rgba(231,76,60,0.35);
@@ -62,8 +81,9 @@
 </style>
 </head>
 <body>
-  <div class="stats-row single">
+  <div class="stats-row two">
     <div class="stat-card"><div class="s-label">总金币</div><div class="s-value" id="totalCoin">0w</div></div>
+    <div class="stat-card done"><div class="s-label">已完成</div><div class="s-value" id="doneCount">0 / 0</div></div>
   </div>
 
   <div class="toolbar">
@@ -75,14 +95,22 @@
 <script>
 (function(){
   const DATA_STORAGE_KEY = 'bang_coin_scores';
+  const DAILY_STORAGE_KEY = 'bang_coin_daily';
 
   let ACCOUNTS = [];
   let data = {};
+  let daily = {};
+  let dailyDate = '';
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   function normalizeName(name) { return String(name).trim().replace(/\s+/g, ' '); }
+
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
 
   function notifyResize() {
     if (window.parent && window.parent !== window) {
@@ -118,6 +146,46 @@
     localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data));
   }
 
+  function loadDaily() {
+    try {
+      const raw = localStorage.getItem(DAILY_STORAGE_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object' && obj.daily && typeof obj.daily === 'object') {
+          return {
+            daily: obj.daily,
+            dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : ''
+          };
+        }
+      }
+    } catch(e) {}
+    return { daily: {}, dailyDate: '' };
+  }
+  function saveDaily() {
+    localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify({ daily, dailyDate }));
+  }
+
+  function checkDailyReset() {
+    const today = todayStr();
+    if (dailyDate === today) return false;
+
+    ACCOUNTS.forEach(a => {
+      if (!daily[a]) daily[a] = false;
+    });
+    dailyDate = today;
+    saveDaily();
+    return true;
+  }
+
+  function clearDailyChecksDom() {
+    document.querySelectorAll('.daily-check').forEach(el => {
+      el.classList.remove('checked');
+      el.textContent = '';
+    });
+    updateStats();
+    notifyResize();
+  }
+
   function syncDataWithAccounts() {
     const normalized = {};
     Object.keys(data).forEach(k => {
@@ -126,10 +194,19 @@
     });
     data = normalized;
 
+    const normalizedDaily = {};
+    Object.keys(daily).forEach(k => {
+      const nk = normalizeName(k);
+      if (!normalizedDaily[nk]) normalizedDaily[nk] = daily[k];
+    });
+    daily = normalizedDaily;
+
     ACCOUNTS.forEach(a => {
       if (data[a] === undefined) data[a] = '';
+      if (typeof daily[a] !== 'boolean') daily[a] = false;
     });
     Object.keys(data).forEach(a => { if (!ACCOUNTS.includes(a)) delete data[a]; });
+    Object.keys(daily).forEach(a => { if (!ACCOUNTS.includes(a)) delete daily[a]; });
     ACCOUNTS = [...new Set(ACCOUNTS)];
   }
 
@@ -137,10 +214,11 @@
     const box = document.getElementById('tableBox');
     let rows = '';
     if (ACCOUNTS.length === 0) {
-      rows = `<tr class="empty-row"><td colspan="3">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
+      rows = `<tr class="empty-row"><td colspan="4">当前无账号，请在顶部「统一账号」输入框中添加</td></tr>`;
     } else {
       rows = ACCOUNTS.map(a => {
         const val = (data[a] !== undefined) ? data[a] : '';
+        const isDone = !!daily[a];
         return `<tr data-acc="${escapeHtml(a)}">
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${escapeHtml(a)}</span></td>
           <td>
@@ -149,6 +227,9 @@
               <span class="coin-unit">w</span>
             </div>
           </td>
+          <td>
+            <div class="daily-check ${isDone ? 'checked' : ''}" data-acc="${escapeHtml(a)}" title="${isDone ? '点击取消每日' : '点击标记每日完成'}">${isDone ? '✓' : ''}</div>
+          </td>
           <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
         </tr>`;
       }).join('');
@@ -156,16 +237,24 @@
 
     box.innerHTML = `<table>
       <colgroup>
-        <col style="width:100px">
+        <col style="width:88px">
         <col style="width:auto">
-        <col style="width:40px">
+        <col style="width:auto">
+        <col style="width:36px">
       </colgroup>
       <thead><tr>
         <th style="text-align:left;padding-left:6px;">账号</th>
         <th>金币</th>
+        <th>每日</th>
         <th>操作</th>
       </tr></thead>
       <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td class="account-cell" style="color:#ea3690;">合计</td>
+        <td><div class="col-total" id="foot-coin">0w</div></td>
+        <td><div class="col-total" id="foot-done">0 / 0</div></td>
+        <td></td>
+      </tr></tfoot>
     </table>`;
 
     box.querySelectorAll('input.coin-input').forEach(inp => {
@@ -173,6 +262,20 @@
         const a = this.dataset.acc;
         data[a] = this.value;
         saveData();
+        updateStats();
+        notifyResize();
+      });
+    });
+
+    box.querySelectorAll('.daily-check').forEach(el => {
+      el.addEventListener('click', function(){
+        const a = this.dataset.acc;
+        if (daily[a] === undefined) daily[a] = false;
+        daily[a] = !daily[a];
+        if (dailyDate !== todayStr()) dailyDate = todayStr();
+        saveDaily();
+        this.classList.toggle('checked', daily[a]);
+        this.textContent = daily[a] ? '✓' : '';
         updateStats();
         notifyResize();
       });
@@ -190,14 +293,25 @@
 
   function updateStats() {
     let total = 0;
+    let done = 0;
     ACCOUNTS.forEach(a => {
       const raw = (data[a] !== undefined) ? data[a] : '';
       const n = parseInt(raw, 10);
       if (!isNaN(n)) total += n;
+      if (daily[a]) done++;
     });
 
     const totalEl = document.getElementById('totalCoin');
     if (totalEl) totalEl.textContent = `${total.toLocaleString()}w`;
+
+    const doneEl = document.getElementById('doneCount');
+    if (doneEl) doneEl.textContent = `${done} / ${ACCOUNTS.length}`;
+
+    const footCoin = document.getElementById('foot-coin');
+    if (footCoin) footCoin.textContent = `${total.toLocaleString()}w`;
+
+    const footDone = document.getElementById('foot-done');
+    if (footDone) footDone.textContent = `${done} / ${ACCOUNTS.length}`;
 
     notifyResize();
   }
@@ -207,11 +321,16 @@
     let has = false;
     ACCOUNTS.forEach(a => {
       if (data[a] !== undefined && String(data[a]).trim() !== '') has = true;
+      if (daily[a]) has = true;
     });
     if (!has) { alert('当前所有金币数据已经是空的'); return; }
-    if (!confirm('确定要清空所有账号的金币数据吗？账号列表将保留。')) return;
-    ACCOUNTS.forEach(a => { data[a] = ''; });
+    if (!confirm('确定要清空所有账号的金币数据和每日勾选吗？账号列表将保留。')) return;
+    ACCOUNTS.forEach(a => {
+      data[a] = '';
+      daily[a] = false;
+    });
     saveData();
+    saveDaily();
     renderAll();
   }
 
@@ -220,16 +339,50 @@
     const incoming = Array.isArray(e.data.accounts) ? e.data.accounts : [];
     ACCOUNTS = incoming.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
     data = loadData();
+    const dailyLoaded = loadDaily();
+    daily = dailyLoaded.daily;
+    dailyDate = dailyLoaded.dailyDate;
     syncDataWithAccounts();
-    saveData();
-    renderAll();
+    if (checkDailyReset()) {
+      saveDaily();
+      renderAll();
+      clearDailyChecksDom();
+    } else {
+      saveData();
+      saveDaily();
+      renderAll();
+    }
   });
 
   function init() {
     data = loadData();
-    renderAll();
+    const dailyLoaded = loadDaily();
+    daily = dailyLoaded.daily;
+    dailyDate = dailyLoaded.dailyDate;
+
+    syncDataWithAccounts();
+    if (checkDailyReset()) {
+      renderAll();
+      clearDailyChecksDom();
+    } else {
+      renderAll();
+    }
 
     document.getElementById('clearDataBtn').addEventListener('click', clearData);
+
+    setInterval(() => {
+      if (checkDailyReset()) {
+        clearDailyChecksDom();
+      }
+    }, 60 * 1000);
+
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        if (checkDailyReset()) {
+          clearDailyChecksDom();
+        }
+      }
+    });
   }
   init();
 })();

@@ -1,5 +1,10 @@
 /* ===== 基础重置 ===== */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
 
 body {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -77,17 +82,17 @@ body {
   isolation: isolate;
 }
 
-/* ===== 表格通用 ===== */
+/* ===== 表格通用：auto 布局，中间列按内容自适应 ===== */
 table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 11px;
-  min-width: 520px;
-  table-layout: fixed;
+  min-width: 720px;
+  table-layout: auto;
 }
 
-/* 表头 */
+/* 普通表头 */
 thead th {
   background: #ea3690;
   color: #fff;
@@ -100,21 +105,22 @@ thead th {
   top: 0;
   z-index: 3;
   border: 1px solid rgba(255,255,255,0.3);
+  min-width: 60px;
 }
 
-/* 表头账号列：最高层级 */
+/* 表头账号列：88px，最高层级 */
 thead th:first-child {
   border-top-left-radius: 6px;
   position: sticky;
   top: 0;
   left: 0;
-  z-index: 100;
+  z-index: 999;
   background: #ea3690;
   text-align: left;
   padding-left: 6px;
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
   box-sizing: border-box;
   border-right: 1px solid rgba(255,255,255,0.3);
 }
@@ -126,6 +132,8 @@ thead th:last-child {
 tbody tr {
   height: 42px;
 }
+
+/* 普通单元格 */
 tbody td {
   padding: 0 4px;
   text-align: center;
@@ -133,6 +141,9 @@ tbody td {
   border-bottom: 1px solid #f3e6ee;
   white-space: nowrap;
   background: #fff;
+  position: relative;
+  z-index: 1;
+  min-width: 60px;
 }
 tbody tr:nth-child(even) td { background: #fdf7fa; }
 
@@ -147,7 +158,7 @@ tfoot td {
   font-weight: bold;
 }
 
-/* 账号列 td：高于普通 td */
+/* 账号列 td：88px，最高层级 */
 .account-cell {
   text-align: left !important;
   font-weight: bold;
@@ -156,11 +167,11 @@ tfoot td {
   white-space: nowrap;
   position: sticky;
   left: 0;
-  z-index: 90;
+  z-index: 998;
   background: #fff;
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
   box-sizing: border-box;
   border-right: 1px solid #f3e6ee;
 }
@@ -239,5 +250,5 @@ input.score::placeholder { color: #ccc; font-weight: normal; text-align: center;
   .stats-row { gap: 5px; }
   .stat-card .s-value { font-size: 15px; }
   .toolbar button { min-width: 64px; font-size: 11px; padding: 6px 4px; }
-  table { min-width: 460px; }
+  table { min-width: 640px; }
 }

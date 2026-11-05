@@ -246,13 +246,13 @@
 
     box.innerHTML = `<table>
       <colgroup>
-        <col style="width:84px">
-        <col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%">
-        <col style="width:34px">
+        <col style="width:88px">
+        <col style="width:auto"><col style="width:auto"><col style="width:auto"><col style="width:auto"><col style="width:auto">
+        <col style="width:36px">
       </colgroup>
       <thead><tr><th style="text-align:left;padding-left:6px;">账号</th>${PLATFORMS.map(p => `<th>${p}</th>`).join('')}<th>操作</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td class="account-cell" style="color:#ea3690;">平台合计</td>${footCells}<td></td></tr></tfoot>
+      <tfoot><tr><td class="account-cell" style="color:#ea3690;">合计</td>${footCells}<td></td></tr></tfoot>
     </table>`;
 
     box.querySelectorAll('input.score').forEach(inp => {
