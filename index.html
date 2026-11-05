@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>打榜数据录入 · 汇总</title>
+<title>穆祉丞051</title>
 <link rel="stylesheet" href="common.css">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -124,8 +124,8 @@
 <body>
 
   <div class="header-area">
-    <h1 id="exportTitle">打榜数据录入</h1>
-    <div class="subtitle" id="exportSubtitle">账号统一管理 · 多模块独立数据</div>
+    <h1 id="exportTitle">穆祉丞051</h1>
+    <div class="subtitle" id="exportSubtitle">专注EP</div>
   </div>
 
   <div class="auth-row" id="authBar">
@@ -707,7 +707,7 @@
     function exportAllData() {
       const payload = collectLocalData();
       if (Object.keys(payload).length === 0) { showAlert('提示', '当前没有任何可导出的数据'); return; }
-      const exportObj = { app: '打榜数据录入', version: 1, exportedAt: new Date().toISOString(), data: payload };
+      const exportObj = { app: '穆祉丞051', version: 1, exportedAt: new Date().toISOString(), data: payload };
       const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
