@@ -72,9 +72,12 @@
     min-height: 12px;
     color: #f97316;
     font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    text-decoration: underline dotted;
   }
   .timer-text.idle { color: #c7c7c7; }
   .timer-text.ready { color: #22c55e; }
+  .timer-text:hover { color: #ea3690; }
 
   input.remark-input {
     width: 100%;
@@ -148,8 +151,12 @@
     border-color: #d0d0d0;
     color: #fff;
   }
+  .timer-text.disabled-timer {
+    pointer-events: none;
+    text-decoration: none;
+    cursor: default;
+  }
 
-  /* 顶部两张卡片 */
   .stats-row.two {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -185,19 +192,25 @@
   }
   function normalizeName(name) { return String(name).trim().replace(/\s+/g, ' '); }
   function pad2(n) { return String(n).padStart(2, '0'); }
-  function formatTime(ts) {
+
+  // 下一轮时间只显示到分钟：MM-DD HH:mm
+  function formatTimeMinute(ts) {
     const d = new Date(ts);
-    return `${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+    return `${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   }
-  function formatCountdown(ms) {
+
+  // 倒计时只显示到分钟：HH:mm（不足 1 分钟显示 <1分）
+  function formatCountdownMinute(ms) {
     if (ms <= 0) return '可做';
-    const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+    const totalMin = Math.floor(ms / 60000);
+    if (totalMin < 1) return '<1分';
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h > 0) return `${pad2(h)}:${pad2(m)}`;
+    return `${m}分`;
   }
-  const IDLE_TEXT = '00:00:00';
+
+  const IDLE_TEXT = '—';
 
   function todayStr() {
     const d = new Date();
@@ -270,6 +283,15 @@
     return true;
   }
 
+  function clearDailyChecksDom() {
+    document.querySelectorAll('.daily-check').forEach(el => {
+      el.classList.remove('checked');
+      el.textContent = '';
+    });
+    updatePowerStats();
+    notifyResize();
+  }
+
   function syncRecordsWithAccounts() {
     const normalized = {};
     Object.keys(records).forEach(k => {
@@ -302,19 +324,23 @@
     const st = getSharedStatus(r);
     const checked = st.done;
     const cls = 'check-box' + (checked ? ' checked' : '') + (disabled ? ' disabled' : '');
-    let timer = '';
+    let timerCls = 'timer-text';
+    let timerText = '';
     if (disabled) {
-      timer = `<span class="timer-text idle" data-timer="${escapeHtml(acc)}|${SHARED}">—</span>`;
+      timerCls += ' idle disabled-timer';
+      timerText = '—';
     } else if (!st.done) {
-      timer = `<span class="timer-text idle" data-timer="${escapeHtml(acc)}|${SHARED}">${IDLE_TEXT}</span>`;
+      timerCls += ' idle';
+      timerText = IDLE_TEXT;
     } else if (st.ready) {
-      timer = `<span class="timer-text ready" data-timer="${escapeHtml(acc)}|${SHARED}">可做</span>`;
+      timerCls += ' ready';
+      timerText = '可做';
     } else {
-      timer = `<span class="timer-text" data-timer="${escapeHtml(acc)}|${SHARED}">${formatCountdown(st.remaining)}</span>`;
+      timerText = formatCountdownMinute(st.remaining);
     }
     return `<div class="shared-cell">
       <div class="${cls}" data-acc="${escapeHtml(acc)}" data-pf="${SHARED}" data-type="shared" title="${disabled ? '该账号电力不可用' : (checked ? '点击取消勾选' : '点击标记为已完成')}">${checked ? '✓' : ''}</div>
-      ${timer}
+      <span class="${timerCls}" data-timer="${escapeHtml(acc)}|${SHARED}" data-acc="${escapeHtml(acc)}" title="${disabled ? '' : '点击手动修改完成时间（只填时分）'}">${timerText}</span>
     </div>`;
   }
 
@@ -381,6 +407,14 @@
       });
     });
 
+    box.querySelectorAll('.timer-text').forEach(el => {
+      if (el.classList.contains('disabled-timer')) return;
+      el.addEventListener('click', function(e){
+        e.stopPropagation();
+        manualEditSharedTime(this.dataset.acc);
+      });
+    });
+
     box.querySelectorAll('input.remark-input').forEach(inp => {
       inp.addEventListener('change', function(){
         const acc = this.dataset.acc;
@@ -426,7 +460,13 @@
     rec[pf] = !rec[pf];
     if (dailyDate !== todayStr()) dailyDate = todayStr();
     savePowerRecords();
-    renderPower();
+    const el = document.querySelector(`.daily-check[data-acc="${CSS.escape(acc)}"][data-pf="${CSS.escape(pf)}"]`);
+    if (el) {
+      el.classList.toggle('checked', rec[pf]);
+      el.textContent = rec[pf] ? '✓' : '';
+    }
+    updatePowerStats();
+    notifyResize();
   }
 
   function toggleShared(acc) {
@@ -439,10 +479,72 @@
     renderPower();
   }
 
+  // ===== 手动修改盲盒完成时间（只填时分） =====
+  function manualEditSharedTime(acc) {
+    const rec = records[acc];
+    if (!rec || rec.disabled) return;
+    const r = rec[SHARED] || { done: false, ts: 0 };
+
+    let currentText = '';
+    if (r.done && r.ts) {
+      const d = new Date(r.ts);
+      currentText = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    }
+
+    const input = prompt(
+      `手动设置「${acc}」盲盒的完成时间\n\n` +
+      `只填时分，例如 14:30 或 1430\n` +
+      `规则：如果填的时间比现在晚，按今天算；比现在早，按昨天算。\n` +
+      `留空则清除完成记录（恢复为未做）。\n\n` +
+      `当前完成时间：${currentText || '未做'}`,
+      currentText
+    );
+
+    if (input === null) return;
+
+    const trimmed = input.trim();
+    if (trimmed === '') {
+      records[acc][SHARED] = { done: false, ts: 0 };
+      savePowerRecords();
+      renderPower();
+      return;
+    }
+
+    const parsed = parseHourMinuteInput(trimmed);
+    if (!parsed) {
+      alert('时间格式不正确，请填写时分，例如 14:30 或 1430');
+      return;
+    }
+
+    records[acc][SHARED] = { done: true, ts: parsed };
+    savePowerRecords();
+    renderPower();
+  }
+
+  // 解析 HH:mm 或 HHmm，自动判断今天/昨天
+  function parseHourMinuteInput(str) {
+    let m = str.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) m = str.match(/^(\d{1,2})(\d{2})$/);
+    if (!m) return 0;
+
+    const hh = parseInt(m[1], 10);
+    const mm = parseInt(m[2], 10);
+    if (isNaN(hh) || isNaN(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) return 0;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
+    let ts = today.getTime();
+
+    // 如果填的时间比现在晚（今天还没到），按昨天算
+    if (ts > Date.now()) {
+      ts -= 24 * 60 * 60 * 1000;
+    }
+    return ts;
+  }
+
   function updatePowerStats() {
     const activeAccounts = ACCOUNTS.filter(a => records[a] && !records[a].disabled);
 
-    // 已完成账号：安卓 + 苹果 的勾选总数 / (有效账号数 × 2)
     let dailyDone = 0;
     activeAccounts.forEach(a => {
       const rec = records[a] || {};
@@ -451,7 +553,6 @@
     });
     const dailyTotal = activeAccounts.length * 2;
 
-    // 下一轮时间：只看盲盒 CD 中未到期的
     let nextTs = 0, hasActive = false;
     activeAccounts.forEach(a => {
       const rec = records[a] || {};
@@ -469,7 +570,7 @@
 
     const nextEl = document.getElementById('powerNextTime');
     if (nextEl) {
-      if (hasActive) { nextEl.textContent = formatTime(nextTs); nextEl.style.color = '#f97316'; }
+      if (hasActive) { nextEl.textContent = formatTimeMinute(nextTs); nextEl.style.color = '#f97316'; }
       else { nextEl.textContent = activeAccounts.length > 0 ? '全部可做' : '—'; nextEl.style.color = '#22c55e'; }
     }
 
@@ -491,7 +592,7 @@
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       if (checkDailyReset()) {
-        renderPower();
+        clearDailyChecksDom();
         return;
       }
       document.querySelectorAll('[data-timer]').forEach(el => {
@@ -501,7 +602,7 @@
         if (!rec) return;
         if (rec.disabled) {
           el.textContent = '—';
-          el.className = 'timer-text idle';
+          el.className = 'timer-text idle disabled-timer';
           return;
         }
         const r = rec[SHARED];
@@ -513,7 +614,7 @@
           el.textContent = '可做';
           el.className = 'timer-text ready';
         } else {
-          el.textContent = formatCountdown(st.remaining);
+          el.textContent = formatCountdownMinute(st.remaining);
           el.className = 'timer-text';
         }
       });
@@ -562,8 +663,11 @@
     syncRecordsWithAccounts();
     if (checkDailyReset()) {
       savePowerRecords();
+      renderPower();
+      clearDailyChecksDom();
+    } else {
+      renderPower();
     }
-    renderPower();
   });
 
   function init() {
@@ -573,20 +677,21 @@
 
     syncRecordsWithAccounts();
     if (checkDailyReset()) {
-      savePowerRecords();
+      renderPower();
+      clearDailyChecksDom();
+    } else {
+      renderPower();
     }
-
-    renderPower();
 
     document.getElementById('powerClearDataBtn').addEventListener('click', clearPowerData);
     document.getElementById('powerResetRoundBtn').addEventListener('click', resetPowerRound);
 
     startTimer();
 
-    document.addEventListener('visibilitychange', function() {
+    document.addEventListener('visibilitychange', function(){
       if (!document.hidden) {
         if (checkDailyReset()) {
-          renderPower();
+          clearDailyChecksDom();
         }
       }
     });

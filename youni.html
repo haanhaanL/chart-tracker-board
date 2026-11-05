@@ -160,6 +160,7 @@
     }));
   }
 
+  // 跨天检查：只改数据，不重建表格
   function checkDailyReset() {
     const today = todayStr();
     if (dailyDate === today) return false;
@@ -171,6 +172,15 @@
     dailyDate = today;
     saveData();
     return true;
+  }
+
+  // 只清空页面上的勾选框 DOM，不动 input 和账号列
+  function clearDailyChecksDom() {
+    document.querySelectorAll('.daily-check').forEach(el => {
+      el.classList.remove('checked');
+      el.textContent = '';
+    });
+    updateStats();
   }
 
   function syncDataWithAccounts() {
@@ -262,8 +272,11 @@
         if (!daily[a]) daily[a] = {};
         daily[a][p] = !daily[a][p];
         if (dailyDate !== todayStr()) dailyDate = todayStr();
+        this.classList.toggle('checked');
+        this.textContent = daily[a][p] ? '✓' : '';
         saveData();
-        renderAll();
+        updateStats();
+        notifyResize();
       });
     });
 
@@ -289,7 +302,6 @@
         const val = isNaN(n) ? 0 : n;
         grand += val;
         colTotals[idx] += val;
-
         if (daily[a] && daily[a][p]) checkedCount++;
       });
     });
@@ -309,7 +321,6 @@
     notifyResize();
   }
 
-  // ===== 清空积分（只清分值，保留勾选） =====
   function clearScores() {
     if (!ACCOUNTS.length) { alert('当前没有账号，无需清空积分'); return; }
     let has = false;
@@ -325,10 +336,12 @@
       PLATFORMS.forEach(p => { data[a][p] = ''; });
     });
     saveData();
-    renderAll();
+    // 只清空输入框，不重建表格
+    document.querySelectorAll('input.score').forEach(inp => { inp.value = ''; });
+    updateStats();
+    notifyResize();
   }
 
-  // ===== 清空任务（只清勾选，保留积分） =====
   function clearTasks() {
     if (!ACCOUNTS.length) { alert('当前没有账号，无需清空任务'); return; }
     let has = false;
@@ -345,7 +358,7 @@
     });
     dailyDate = todayStr();
     saveData();
-    renderAll();
+    clearDailyChecksDom();
   }
 
   window.addEventListener('message', function(e) {
@@ -357,7 +370,10 @@
     daily = loaded.daily;
     dailyDate = loaded.dailyDate;
     syncDataWithAccounts();
-    if (checkDailyReset()) saveData();
+    if (checkDailyReset()) {
+      // 跨天：只清勾选框，不重建表格
+      clearDailyChecksDom();
+    }
     renderAll();
   });
 
@@ -368,20 +384,28 @@
     dailyDate = loaded.dailyDate;
 
     syncDataWithAccounts();
-    if (checkDailyReset()) saveData();
-
-    renderAll();
+    if (checkDailyReset()) {
+      // 初始化时跨天，先加载表格，再清勾选框
+      renderAll();
+      clearDailyChecksDom();
+    } else {
+      renderAll();
+    }
 
     document.getElementById('clearScoresBtn').addEventListener('click', clearScores);
     document.getElementById('clearTasksBtn').addEventListener('click', clearTasks);
 
     setInterval(() => {
-      if (checkDailyReset()) renderAll();
+      if (checkDailyReset()) {
+        clearDailyChecksDom();
+      }
     }, 60 * 1000);
 
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden) {
-        if (checkDailyReset()) renderAll();
+        if (checkDailyReset()) {
+          clearDailyChecksDom();
+        }
       }
     });
   }

@@ -64,16 +64,17 @@ body {
 .toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
 .toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
 
-/* ===== 表格容器：只横向滚动，竖向高度自适应 ===== */
+/* ===== 表格容器 ===== */
 .table-box {
   background: white;
   border-radius: 8px;
   padding: 4px;
   border: 1px solid #f3e6ee;
-  overflow-x: auto;            /* 只横向滚动 */
-  overflow-y: visible;         /* 竖向不滚动，高度由内容决定 */
+  overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   position: relative;
+  isolation: isolate;
 }
 
 /* ===== 表格通用 ===== */
@@ -86,7 +87,7 @@ table {
   table-layout: fixed;
 }
 
-/* 表头：固定在 table-box 内部顶部（横向滚动时保持） */
+/* 表头 */
 thead th {
   background: #ea3690;
   color: #fff;
@@ -105,7 +106,7 @@ thead th:first-child {
   position: sticky;
   top: 0;
   left: 0;
-  z-index: 5;
+  z-index: 30;
   background: #ea3690;
   text-align: left;
   padding-left: 6px;
@@ -114,7 +115,7 @@ thead th:last-child {
   border-top-right-radius: 6px;
 }
 
-/* ===== 行高 ===== */
+/* 行高 */
 tbody tr {
   height: 42px;
 }
@@ -140,7 +141,7 @@ tfoot td {
   font-weight: bold;
 }
 
-/* 账号列：固定在左侧 */
+/* 账号列：sticky + 高 z-index + 不透明背景 */
 .account-cell {
   text-align: left !important;
   font-weight: bold;
@@ -148,11 +149,9 @@ tfoot td {
   padding-left: 6px !important;
   white-space: nowrap;
   width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 20;
   background: #fff;
 }
 tbody tr:nth-child(even) .account-cell { background: #fdf7fa; }

@@ -65,7 +65,6 @@
   .global-toolbar .count { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
   .global-toolbar .count b { color: #ea3690; }
 
-  /* 数据备份区 */
   .backup-toolbar {
     max-width: 1600px;
     margin: 0 auto 14px;
@@ -93,6 +92,42 @@
   .backup-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
   .backup-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
   .backup-toolbar .hint { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
+
+  /* ===== 移动端 tab 栏：整体一个圆角矩形 ===== */
+  .module-tabs {
+    display: none;
+    max-width: 1600px;
+    margin: 0 auto 10px;
+    gap: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid rgba(234,54,144,0.35);
+    border-radius: 18px;
+    padding: 3px;
+    box-shadow: 0 2px 8px rgba(234,54,144,0.06);
+  }
+  .module-tab-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 6px;
+    border-radius: 15px;
+    border: none;
+    background: transparent;
+    color: #ea3690;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .module-tab-btn.active {
+    background: #ea3690;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(234,54,144,0.25);
+  }
 
   .module-grid {
     display: grid;
@@ -125,8 +160,20 @@
     height: 420px;
     min-height: 120px;
   }
+
   @media (max-width: 900px) {
-    .module-grid { grid-template-columns: 1fr; gap: 10px; }
+    .module-tabs { display: flex; }
+    .module-grid {
+      display: block;
+      margin-bottom: 30px;
+    }
+    .module-card {
+      display: none;
+      margin-bottom: 0;
+    }
+    .module-card.active {
+      display: flex;
+    }
     h1 { font-size: 16px; margin: 16px 0 8px; }
     .subtitle { margin-bottom: 10px; }
     .global-toolbar input.new-account { flex-basis: 100%; }
@@ -134,7 +181,6 @@
     .backup-toolbar .hint { margin-left: 0; width: 100%; text-align: right; }
   }
 
-  /* 隐藏文件输入 */
   #importJsonInput { display: none; }
 </style>
 </head>
@@ -159,20 +205,27 @@
     <span class="hint">换设备时：旧设备导出 JSON → 传到新设备 → 新设备导入</span>
   </div>
 
+  <div class="module-tabs" id="moduleTabs">
+    <button class="module-tab-btn active" data-module="power">电力</button>
+    <button class="module-tab-btn" data-module="youni">由你积分</button>
+    <button class="module-tab-btn" data-module="coin">金币</button>
+    <button class="module-tab-btn" data-module="play">刷播</button>
+  </div>
+
   <div class="module-grid">
-    <div class="module-card">
-      <div class="module-title">由你积分</div>
-      <iframe src="youni.html" title="由你积分"></iframe>
-    </div>
-    <div class="module-card">
+    <div class="module-card active" data-module="power">
       <div class="module-title">电力（每 4 小时一轮）</div>
       <iframe src="power.html" title="电力"></iframe>
     </div>
-    <div class="module-card">
+    <div class="module-card" data-module="youni">
+      <div class="module-title">由你积分</div>
+      <iframe src="youni.html" title="由你积分"></iframe>
+    </div>
+    <div class="module-card" data-module="coin">
       <div class="module-title">金币</div>
       <iframe src="coin.html" title="金币"></iframe>
     </div>
-    <div class="module-card">
+    <div class="module-card" data-module="play">
       <div class="module-title">刷播</div>
       <iframe src="play.html" title="刷播"></iframe>
     </div>
@@ -273,7 +326,28 @@
       clearBtn.addEventListener('click', clearGlobalAccounts);
     }
 
-    // ===== 导出全部数据 =====
+    function initModuleTabs() {
+      const tabs = document.querySelectorAll('.module-tab-btn');
+      const cards = document.querySelectorAll('.module-card');
+      tabs.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const mod = this.dataset.module;
+          tabs.forEach(b => b.classList.toggle('active', b === this));
+          cards.forEach(c => c.classList.toggle('active', c.dataset.module === mod));
+          setTimeout(() => {
+            cards.forEach(c => {
+              if (c.classList.contains('active')) {
+                const iframe = c.querySelector('iframe');
+                if (iframe) {
+                  try { iframe.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*'); } catch(e) {}
+                }
+              }
+            });
+          }, 50);
+        });
+      });
+    }
+
     function todayStr() {
       const d = new Date();
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -311,7 +385,6 @@
       URL.revokeObjectURL(url);
     }
 
-    // ===== 导入全部数据 =====
     function importAllData(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -323,7 +396,6 @@
             return;
           }
 
-          // 校验：data 的键应该都是字符串，值都是字符串（localStorage 只存字符串）
           const dataObj = parsed.data;
           const keys = Object.keys(dataObj);
           if (keys.length === 0) {
@@ -344,7 +416,6 @@
 
           if (!confirm(summary)) return;
 
-          // 写入
           bangKeys.forEach(k => {
             const v = dataObj[k];
             localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
@@ -381,10 +452,9 @@
       });
     }
 
-    // ===== 高度统一 =====
     const IFRAME_MODULE_MAP = {
-      '由你积分': 'youni',
       '电力（每 4 小时一轮）': 'power',
+      '由你积分': 'youni',
       '金币': 'coin',
       '刷播': 'play'
     };
@@ -465,6 +535,7 @@
 
     initGlobalToolbar();
     initBackupToolbar();
+    initModuleTabs();
   </script>
 </body>
 </html>
