@@ -45,7 +45,7 @@
 
   <div class="toolbar">
     <button id="clearDataBtn" class="danger">清空数据</button>
-    <button id="resetTasksBtn" class="danger">重置任务</button>
+    <button id="resetTasksBtn">重置任务</button>
   </div>
 
   <div class="table-box" id="tableBox"></div>
@@ -64,6 +64,7 @@
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   function normalizeName(name) { return String(name).trim().replace(/\s+/g, ' '); }
+
   function todayStr() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;

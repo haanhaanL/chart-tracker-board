@@ -39,7 +39,7 @@
 
   <div class="toolbar">
     <button id="clearScoresBtn" class="danger">清空积分</button>
-    <button id="clearTasksBtn" class="danger">重置任务</button>
+    <button id="clearTasksBtn">重置任务</button>
   </div>
 
   <div class="table-box" id="tableBox"></div>
@@ -47,7 +47,8 @@
 <script>
 (function(){
   const PLATFORMS = ['q音', '酷狗', '酷我', '波点', '波点2'];
-  const DATA_STORAGE_KEY = 'bang_youni_scores';
+  const SCORES_STORAGE_KEY = 'bang_youni_scores';   // 只存积分数值
+  const DAILY_STORAGE_KEY  = 'bang_youni_daily';    // 只存每日勾选 + dailyDate
 
   let ACCOUNTS = [];
   let data = {};
@@ -81,26 +82,45 @@
     }
   }
 
-  function loadData() {
+  // ===== 存储：积分数值 =====
+  function loadScores() {
     try {
-      const raw = localStorage.getItem(DATA_STORAGE_KEY);
+      const raw = localStorage.getItem(SCORES_STORAGE_KEY);
       if (raw) {
         const obj = JSON.parse(raw);
         if (obj && typeof obj === 'object') {
-          if (obj.scores && typeof obj.scores === 'object') {
-            return { scores: obj.scores, daily: obj.daily || {}, dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : '' };
-          }
-          return { scores: obj, daily: {}, dailyDate: '' };
+          // 兼容旧结构 {scores, daily, dailyDate}
+          if (obj.scores && typeof obj.scores === 'object') return obj.scores;
+          return obj;
         }
       }
     } catch(e) {}
-    return { scores: {}, daily: {}, dailyDate: '' };
+    return {};
   }
-  function saveData() {
-    localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify({ scores: data, daily: daily, dailyDate: dailyDate }));
+  function saveScores() {
+    if (!ACCOUNTS.length) return;   // 空账号不保存，防止覆盖
+    localStorage.setItem(SCORES_STORAGE_KEY, JSON.stringify(data));
+  }
+
+  // ===== 存储：每日勾选 =====
+  function loadDaily() {
+    try {
+      const raw = localStorage.getItem(DAILY_STORAGE_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object' && obj.daily && typeof obj.daily === 'object') {
+          return { daily: obj.daily, dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : '' };
+        }
+      }
+    } catch(e) {}
+    return { daily: {}, dailyDate: '' };
+  }
+  function saveDaily() {
+    localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify({ daily, dailyDate }));
   }
 
   function checkDailyReset() {
+    if (!ACCOUNTS.length) return false;   // 没账号不重置、不保存
     const today = todayStr();
     if (dailyDate === today) return false;
     ACCOUNTS.forEach(a => {
@@ -108,7 +128,7 @@
       PLATFORMS.forEach(p => { daily[a][p] = false; });
     });
     dailyDate = today;
-    saveData();
+    saveDaily();          // 只写 daily，不碰 scores
     notifyDirty();
     return true;
   }
@@ -122,18 +142,22 @@
   }
 
   function syncDataWithAccounts() {
+    if (!ACCOUNTS.length) return;   // 账号未同步，绝不动数据
+
     const normalizedScores = {};
     Object.keys(data).forEach(k => {
       const nk = normalizeName(k);
       if (!normalizedScores[nk]) normalizedScores[nk] = data[k];
     });
     data = normalizedScores;
+
     const normalizedDaily = {};
     Object.keys(daily).forEach(k => {
       const nk = normalizeName(k);
       if (!normalizedDaily[nk]) normalizedDaily[nk] = daily[k];
     });
     daily = normalizedDaily;
+
     ACCOUNTS.forEach(a => {
       if (!data[a]) data[a] = {};
       if (!daily[a]) daily[a] = {};
@@ -142,6 +166,7 @@
         if (daily[a][p] === undefined) daily[a][p] = false;
       });
     });
+
     Object.keys(data).forEach(a => { if (!ACCOUNTS.includes(a)) delete data[a]; });
     Object.keys(daily).forEach(a => { if (!ACCOUNTS.includes(a)) delete daily[a]; });
     ACCOUNTS = [...new Set(ACCOUNTS)];
@@ -195,7 +220,7 @@
         data[a][p] = this.value;
         const n = parseInt(this.value, 10);
         this.classList.toggle('highlight', !isNaN(n) && n > 112);
-        saveData();
+        saveScores();
         notifyDirty();
         updateStats();
         notifyResize();
@@ -210,7 +235,7 @@
         if (dailyDate !== todayStr()) dailyDate = todayStr();
         this.classList.toggle('checked');
         this.textContent = daily[a][p] ? '✓' : '';
-        saveData();
+        saveDaily();
         notifyDirty();
         updateStats();
         notifyResize();
@@ -265,7 +290,7 @@
       if (!data[a]) data[a] = {};
       PLATFORMS.forEach(p => { data[a][p] = ''; });
     });
-    saveData();
+    saveScores();
     notifyDirty();
     document.querySelectorAll('input.score').forEach(inp => { inp.value = ''; });
     updateStats();
@@ -285,7 +310,7 @@
       PLATFORMS.forEach(p => { daily[a][p] = false; });
     });
     dailyDate = todayStr();
-    saveData();
+    saveDaily();
     notifyDirty();
     clearDailyChecksDom();
   }
@@ -294,13 +319,22 @@
     if (!e.data || e.data.type !== 'accounts-changed') return;
     const incoming = Array.isArray(e.data.accounts) ? e.data.accounts : [];
     ACCOUNTS = incoming.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
-    const loaded = loadData();
-    data = loaded.scores;
-    daily = loaded.daily;
-    dailyDate = loaded.dailyDate;
+
+    data = loadScores();
+    const dailyLoaded = loadDaily();
+    daily = dailyLoaded.daily;
+    dailyDate = dailyLoaded.dailyDate;
+
     syncDataWithAccounts();
-    if (checkDailyReset()) clearDailyChecksDom();
-    renderAll();
+    if (checkDailyReset()) {
+      saveDaily();
+      renderAll();
+      clearDailyChecksDom();
+    } else {
+      saveScores();
+      saveDaily();
+      renderAll();
+    }
   });
 
   window.addEventListener('message', async function(e) {
@@ -365,10 +399,30 @@
   });
 
   function init() {
-    const loaded = loadData();
-    data = loaded.scores;
-    daily = loaded.daily;
-    dailyDate = loaded.dailyDate;
+    // 旧结构迁移：{scores, daily, dailyDate} -> 拆成两个 key
+    try {
+      const raw = localStorage.getItem(SCORES_STORAGE_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && obj.scores && typeof obj.scores === 'object') {
+          data = obj.scores;
+          if (obj.daily && typeof obj.daily === 'object') {
+            daily = obj.daily;
+            dailyDate = typeof obj.dailyDate === 'string' ? obj.dailyDate : '';
+            saveDaily();
+          }
+          if (ACCOUNTS.length) saveScores();   // 重写为纯 scores 结构
+        } else {
+          data = obj || {};
+        }
+      }
+    } catch(e) {}
+
+    if (!Object.keys(data).length) data = loadScores();
+    const dailyLoaded = loadDaily();
+    if (!Object.keys(daily).length) daily = dailyLoaded.daily;
+    if (!dailyDate) dailyDate = dailyLoaded.dailyDate;
+
     syncDataWithAccounts();
     if (checkDailyReset()) {
       renderAll();

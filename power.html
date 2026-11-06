@@ -95,10 +95,12 @@
   const SHARED = '盲盒';
   const DAILY_PLATFORMS = ['安卓', '苹果'];
   const POWER_INTERVAL_MS = 4 * 60 * 60 * 1000;
-  const POWER_STORAGE_KEY = 'bang_power_state';
+  const RECORDS_STORAGE_KEY = 'bang_power_state';   // records（数值/备注/禁用/盲盒）
+  const DAILY_STORAGE_KEY   = 'bang_power_daily';   // 安卓/苹果勾选 + dailyDate
 
   let ACCOUNTS = [];
   let records = {};
+  let daily = {};        // { [acc]: { '安卓': bool, '苹果': bool } }
   let dailyDate = '';
   let timerInterval = null;
 
@@ -199,31 +201,52 @@
     }
   });
 
-  function loadPowerState() {
+  // ===== 存储：records（数值/备注/禁用/盲盒） =====
+  function loadRecords() {
     try {
-      const raw = localStorage.getItem(POWER_STORAGE_KEY);
+      const raw = localStorage.getItem(RECORDS_STORAGE_KEY);
       if (raw) {
         const obj = JSON.parse(raw);
-        if (obj && typeof obj === 'object' && obj.records && typeof obj.records === 'object') {
-          return { records: obj.records, dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : '' };
+        if (obj && typeof obj === 'object') {
+          if (obj.records && typeof obj.records === 'object') return obj.records; // 兼容旧结构
+          return obj;
         }
       }
     } catch(e) {}
-    return { records: {}, dailyDate: '' };
+    return {};
   }
-  function savePowerRecords() {
-    localStorage.setItem(POWER_STORAGE_KEY, JSON.stringify({ records, dailyDate }));
+  function saveRecords() {
+    if (!ACCOUNTS.length) return;   // 空账号不保存
+    localStorage.setItem(RECORDS_STORAGE_KEY, JSON.stringify(records));
+  }
+
+  // ===== 存储：每日勾选 =====
+  function loadPowerDaily() {
+    try {
+      const raw = localStorage.getItem(DAILY_STORAGE_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object' && obj.daily && typeof obj.daily === 'object') {
+          return { daily: obj.daily, dailyDate: typeof obj.dailyDate === 'string' ? obj.dailyDate : '' };
+        }
+      }
+    } catch(e) {}
+    return { daily: {}, dailyDate: '' };
+  }
+  function savePowerDaily() {
+    localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify({ daily, dailyDate }));
   }
 
   function checkDailyReset() {
+    if (!ACCOUNTS.length) return false;
     const today = todayStr();
     if (dailyDate === today) return false;
     ACCOUNTS.forEach(a => {
-      if (!records[a]) records[a] = {};
-      DAILY_PLATFORMS.forEach(p => { records[a][p] = false; });
+      if (!daily[a]) daily[a] = {};
+      DAILY_PLATFORMS.forEach(p => { daily[a][p] = false; });
     });
     dailyDate = today;
-    savePowerRecords();
+    savePowerDaily();     // 只写 daily，不碰 records
     notifyDirty();
     return true;
   }
@@ -238,22 +261,39 @@
   }
 
   function syncRecordsWithAccounts() {
+    if (!ACCOUNTS.length) return;
+
+    // records 归一化
     const normalized = {};
     Object.keys(records).forEach(k => {
       const nk = normalizeName(k);
-      if (!normalized[nk]) normalized[nk] = records[k];
+      if (!normalized[nk]) normalized[nk] = records[nk];
     });
     records = normalized;
+
+    // daily 归一化
+    const normalizedDaily = {};
+    Object.keys(daily).forEach(k => {
+      const nk = normalizeName(k);
+      if (!normalizedDaily[nk]) normalizedDaily[nk] = daily[k];
+    });
+    daily = normalizedDaily;
+
     ACCOUNTS.forEach(a => {
       if (!records[a]) records[a] = {};
-      DAILY_PLATFORMS.forEach(p => { if (typeof records[a][p] !== 'boolean') records[a][p] = false; });
+      if (!daily[a]) daily[a] = {};
+      DAILY_PLATFORMS.forEach(p => {
+        if (typeof daily[a][p] !== 'boolean') daily[a][p] = false;
+      });
       if (!records[a][SHARED] || typeof records[a][SHARED] !== 'object') records[a][SHARED] = { done: false, ts: 0 };
       if (typeof records[a].disabled !== 'boolean') records[a].disabled = false;
       if (typeof records[a].remark !== 'string') records[a].remark = '';
       if (typeof records[a].teamPower !== 'string') records[a].teamPower = '';
       if (typeof records[a].personalPower !== 'string') records[a].personalPower = '';
     });
+
     Object.keys(records).forEach(a => { if (!ACCOUNTS.includes(a)) delete records[a]; });
+    Object.keys(daily).forEach(a => { if (!ACCOUNTS.includes(a)) delete daily[a]; });
     ACCOUNTS = [...new Set(ACCOUNTS)];
   }
 
@@ -290,8 +330,8 @@
         const personalPower = rec.personalPower || '';
         return `<tr data-acc="${escapeHtml(a)}" class="${disabled ? 'row-disabled' : ''}">
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${idx + 1}. ${escapeHtml(a)}</span></td>
-          <td>${dailyCheckHtml(a, '安卓', !!rec['安卓'], disabled)}</td>
-          <td>${dailyCheckHtml(a, '苹果', !!rec['苹果'], disabled)}</td>
+          <td>${dailyCheckHtml(a, '安卓', !!(daily[a] && daily[a]['安卓']), disabled)}</td>
+          <td>${dailyCheckHtml(a, '苹果', !!(daily[a] && daily[a]['苹果']), disabled)}</td>
           <td>${sharedHtml(a, rec[SHARED] || { done: false, ts: 0 }, disabled)}</td>
           <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="teamPower" value="${escapeHtml(teamPower)}"></td>
           <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="personalPower" value="${escapeHtml(personalPower)}"></td>
@@ -337,7 +377,7 @@
         const acc = this.dataset.acc, field = this.dataset.field;
         if (!records[acc]) return;
         records[acc][field] = this.value;
-        savePowerRecords();
+        saveRecords();
         notifyDirty();
         updatePowerStats();
         notifyResize();
@@ -348,14 +388,14 @@
         const acc = this.dataset.acc;
         if (!records[acc]) return;
         records[acc].remark = this.value;
-        savePowerRecords();
+        saveRecords();
         notifyDirty();
       });
       inp.addEventListener('blur', function(){
         const acc = this.dataset.acc;
         if (!records[acc]) return;
         records[acc].remark = this.value;
-        savePowerRecords();
+        saveRecords();
         notifyDirty();
       });
     });
@@ -365,10 +405,12 @@
         if (!records[acc]) return;
         records[acc].disabled = !records[acc].disabled;
         if (records[acc].disabled) {
-          DAILY_PLATFORMS.forEach(p => { records[acc][p] = false; });
+          if (!daily[acc]) daily[acc] = {};
+          DAILY_PLATFORMS.forEach(p => { daily[acc][p] = false; });
           records[acc][SHARED] = { done: false, ts: 0 };
         }
-        savePowerRecords();
+        saveRecords();
+        savePowerDaily();
         notifyDirty();
         renderPower();
       });
@@ -384,12 +426,13 @@
   function toggleDaily(acc, pf) {
     const rec = records[acc];
     if (!rec || rec.disabled) return;
-    rec[pf] = !rec[pf];
+    if (!daily[acc]) daily[acc] = {};
+    daily[acc][pf] = !daily[acc][pf];
     if (dailyDate !== todayStr()) dailyDate = todayStr();
-    savePowerRecords();
+    savePowerDaily();       // 只写 daily
     notifyDirty();
     const el = document.querySelector(`.daily-check[data-acc="${CSS.escape(acc)}"][data-pf="${CSS.escape(pf)}"]`);
-    if (el) { el.classList.toggle('checked', rec[pf]); el.textContent = rec[pf] ? '✓' : ''; }
+    if (el) { el.classList.toggle('checked', daily[acc][pf]); el.textContent = daily[acc][pf] ? '✓' : ''; }
     updatePowerStats();
     notifyResize();
   }
@@ -400,7 +443,7 @@
     const st = getSharedStatus(rec[SHARED]);
     if (st.phase === 'cooldown') rec[SHARED] = { done: false, ts: 0 };
     else rec[SHARED] = { done: true, ts: Date.now() };
-    savePowerRecords();
+    saveRecords();
     notifyDirty();
     renderPower();
   }
@@ -424,7 +467,7 @@
     const trimmed = (result.value || '').trim();
     if (trimmed === '') {
       records[acc][SHARED] = { done: false, ts: 0 };
-      savePowerRecords();
+      saveRecords();
       notifyDirty();
       renderPower();
       return;
@@ -439,7 +482,7 @@
       return;
     }
     records[acc][SHARED] = { done: true, ts: parsed };
-    savePowerRecords();
+    saveRecords();
     notifyDirty();
     renderPower();
   }
@@ -460,9 +503,8 @@
     const activeAccounts = ACCOUNTS.filter(a => records[a] && !records[a].disabled);
     let dailyDone = 0;
     activeAccounts.forEach(a => {
-      const rec = records[a] || {};
-      if (rec['安卓']) dailyDone++;
-      if (rec['苹果']) dailyDone++;
+      if (daily[a] && daily[a]['安卓']) dailyDone++;
+      if (daily[a] && daily[a]['苹果']) dailyDone++;
     });
     const dailyTotal = activeAccounts.length * 2;
 
@@ -497,8 +539,8 @@
     const sumEl = document.getElementById('powerSum');
     if (sumEl) sumEl.textContent = totalSum.toLocaleString();
 
-    const androidDone = activeAccounts.filter(a => records[a] && records[a]['安卓']).length;
-    const iosDone = activeAccounts.filter(a => records[a] && records[a]['苹果']).length;
+    const androidDone = activeAccounts.filter(a => daily[a] && daily[a]['安卓']).length;
+    const iosDone = activeAccounts.filter(a => daily[a] && daily[a]['苹果']).length;
     const sharedDone = activeAccounts.filter(a => {
       const st = getSharedStatus(records[a] && records[a][SHARED]);
       return st.phase === 'cooldown';
@@ -566,7 +608,7 @@
         records[a].teamPower = '';
         records[a].personalPower = '';
       });
-      savePowerRecords();
+      saveRecords();
       notifyDirty();
       renderPower();
     });
@@ -576,18 +618,17 @@
     if (!ACCOUNTS.length) { showAlert('提示', '当前没有账号'); return; }
     let has = false;
     ACCOUNTS.forEach(a => {
-      const rec = records[a];
-      if (rec && (rec['安卓'] || rec['苹果'])) has = true;
+      if (daily[a] && (daily[a]['安卓'] || daily[a]['苹果'])) has = true;
     });
     if (!has) { showAlert('提示', '当前所有任务勾选已经是空的'); return; }
     showConfirm('重置任务', '确定要清空所有账号的安卓、苹果勾选吗？盲盒、电力数值、备注会保留。', function(ok) {
       if (!ok) return;
       ACCOUNTS.forEach(a => {
-        if (!records[a]) records[a] = {};
-        DAILY_PLATFORMS.forEach(p => { records[a][p] = false; });
+        if (!daily[a]) daily[a] = {};
+        DAILY_PLATFORMS.forEach(p => { daily[a][p] = false; });
       });
       dailyDate = todayStr();
-      savePowerRecords();
+      savePowerDaily();
       notifyDirty();
       renderPower();
     });
@@ -607,7 +648,7 @@
         if (!records[a]) records[a] = {};
         records[a][SHARED] = { done: false, ts: 0 };
       });
-      savePowerRecords();
+      saveRecords();
       notifyDirty();
       renderPower();
     });
@@ -628,15 +669,20 @@
     if (!e.data || e.data.type !== 'accounts-changed') return;
     const incoming = Array.isArray(e.data.accounts) ? e.data.accounts : [];
     ACCOUNTS = incoming.filter(x => typeof x === 'string' && x.trim() !== '').map(normalizeName);
-    const loaded = loadPowerState();
-    records = loaded.records;
-    dailyDate = loaded.dailyDate;
+
+    records = loadRecords();
+    const dailyLoaded = loadPowerDaily();
+    daily = dailyLoaded.daily;
+    dailyDate = dailyLoaded.dailyDate;
+
     syncRecordsWithAccounts();
     if (checkDailyReset()) {
-      savePowerRecords();
+      savePowerDaily();
       renderPower();
       clearDailyChecksDom();
     } else {
+      saveRecords();
+      savePowerDaily();
       renderPower();
     }
   });
@@ -703,9 +749,38 @@
   });
 
   function init() {
-    const loaded = loadPowerState();
-    records = loaded.records;
-    dailyDate = loaded.dailyDate;
+    // 旧结构迁移：{records, dailyDate} -> 拆成 records + daily
+    try {
+      const raw = localStorage.getItem(RECORDS_STORAGE_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && obj.records && typeof obj.records === 'object') {
+          records = obj.records;
+          Object.keys(records).forEach(a => {
+            if (!daily[a]) daily[a] = {};
+            DAILY_PLATFORMS.forEach(p => {
+              if (typeof records[a][p] === 'boolean') {
+                daily[a][p] = records[a][p];
+                delete records[a][p];
+              }
+            });
+          });
+          if (typeof obj.dailyDate === 'string') dailyDate = obj.dailyDate;
+          if (ACCOUNTS.length) {
+            saveRecords();
+            savePowerDaily();
+          }
+        } else {
+          records = obj || {};
+        }
+      }
+    } catch(e) {}
+
+    if (!Object.keys(records).length) records = loadRecords();
+    const dailyLoaded = loadPowerDaily();
+    if (!Object.keys(daily).length) daily = dailyLoaded.daily;
+    if (!dailyDate) dailyDate = dailyLoaded.dailyDate;
+
     syncRecordsWithAccounts();
     if (checkDailyReset()) {
       renderPower();

@@ -858,7 +858,10 @@
         canvas.width = totalW;
         canvas.height = totalH;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#faf7f9';
+        const bgGrad = ctx.createLinearGradient(0, 0, totalW, totalH);
+        bgGrad.addColorStop(0, '#ffedf6');
+        bgGrad.addColorStop(1, '#fff8f4');
+        ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, totalW, totalH);
         ctx.fillStyle = '#fd8ec6';
         ctx.font = `bold ${16 * scale}px system-ui, sans-serif`;
@@ -882,7 +885,10 @@
           ctx.lineWidth = 1 * scale;
           roundRect(ctx, x, y, colW, rowH, 6 * scale);
           ctx.stroke();
-          ctx.fillStyle = '#fd8ec6';
+          const titleGrad = ctx.createLinearGradient(x, y, x + colW, y + cardTitleH);
+          titleGrad.addColorStop(0, '#fd8ec6');
+          titleGrad.addColorStop(1, '#ff8f40');
+          ctx.fillStyle = titleGrad;
           roundRectTop(ctx, x, y, colW, cardTitleH, 6 * scale);
           ctx.fill();
           ctx.fillStyle = '#fff';
