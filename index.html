@@ -78,9 +78,74 @@
     .module-card { display: none; margin-bottom: 0; }
     .module-card.active { display: flex; }
     .module-card.force-show { display: flex !important; margin-bottom: 8px; }
-    .global-toolbar input.new-account { flex-basis: 100%; }
-    .global-toolbar .count { margin-left: 0; width: 100%; text-align: right; }
-    .backup-toolbar .hint { margin-left: 0; width: 100%; text-align: right; }
+
+    /* ===== 移动端：打榜账号 ===== */
+    .global-toolbar {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+    .global-toolbar .label {
+      flex: 1 1 100%;
+      width: 100%;
+      text-align: left;
+      margin: 0;
+    }
+    .global-toolbar input.new-account {
+      flex: 1 1 100%;
+      width: 100%;
+      min-width: 0;
+      height: 32px;
+    }
+    .global-toolbar button {
+      flex: 0 0 auto;
+      min-width: 0;
+      padding: 0 14px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .global-toolbar .count {
+      flex: 1 1 auto;
+      margin-left: 0;
+      text-align: right;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    /* ===== 移动端：数据备份三行 ===== */
+    .backup-toolbar {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      overflow-x: visible;
+    }
+    .backup-toolbar .label {
+      flex: 1 1 100%;
+      width: 100%;
+      text-align: left;
+      margin: 0;
+    }
+    .backup-toolbar button {
+      flex: 1 1 0;
+      width: auto;
+      min-width: 0;
+      padding: 0 6px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .backup-toolbar .hint {
+      display: block;
+      flex: 1 1 100%;
+      width: 100%;
+      margin-left: 0;
+      text-align: right;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
   #importJsonInput { display: none; }
   .modal-overlay {
