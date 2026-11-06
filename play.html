@@ -88,10 +88,12 @@
     return { data: {}, dailyDate: '' };
   }
   function saveData() {
+    if (!ACCOUNTS.length) return;   // 空账号不保存，防止覆盖
     localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify({ data, dailyDate }));
   }
 
   function checkDailyReset() {
+    if (!ACCOUNTS.length) return false;   // 没账号不重置、不保存
     const today = todayStr();
     if (dailyDate === today) return false;
     ACCOUNTS.forEach(a => {
@@ -114,6 +116,8 @@
   }
 
   function syncDataWithAccounts() {
+    if (!ACCOUNTS.length) return;   // 账号未同步，绝不动数据
+
     const normalized = {};
     Object.keys(data).forEach(k => {
       const nk = normalizeName(k);
