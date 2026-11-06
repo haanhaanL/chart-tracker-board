@@ -77,10 +77,8 @@ body {
   --foot-h: 44px;      /* 表尾高度（含边框的保守值） */
   --extra: 8px;        /* 额外余量，防止差 1–2px 截断 */
   max-height: calc(var(--head-h) + var(--foot-h) + var(--row-h) * var(--rows) + var(--extra));
-  /* 其余属性不变 */
   background: white;
   border-radius: 8px;
-  padding: 4px;
   border: 1px solid #f3e6ee;
   overflow-x: auto;
   overflow-y: auto;
@@ -99,6 +97,9 @@ table {
   table-layout: auto;
 }
 
+/* 表头整行背景：盖住行间缝隙 */
+thead tr { background: #fd8ec6; }
+
 /* 普通表头：固定在 table-box 顶部 */
 thead th {
   background: #fd8ec6;
@@ -110,7 +111,7 @@ thead th {
   white-space: nowrap;
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 30;          /* 提高，压过 tbody */
   border: 1px solid rgba(255,255,255,0.3);
   min-width: 60px;
 }
@@ -140,7 +141,7 @@ tbody tr {
   height: 42px;
 }
 
-/* 普通单元格 */
+/* 普通单元格：z-index 降为 0，避免压过表头表尾 */
 tbody td {
   padding: 0 4px;
   text-align: center;
@@ -149,7 +150,7 @@ tbody td {
   white-space: nowrap;
   background: #fff;
   position: relative;
-  z-index: 1;
+  z-index: 0;
   min-width: 60px;
 }
 tbody tr:nth-child(even) td { background: #fdf7fa; }
@@ -157,6 +158,7 @@ tbody tr:nth-child(even) td { background: #fdf7fa; }
 /* ===== 表尾合计：固定在 table-box 底部 ===== */
 tfoot tr {
   height: 42px;
+  background: #fdf7fa;   /* 整行背景，盖住缝隙 */
 }
 tfoot td {
   background: #fdf7fa;
@@ -166,7 +168,7 @@ tfoot td {
   font-weight: bold;
   position: sticky;
   bottom: 0;
-  z-index: 5;
+  z-index: 40;           /* 提高，压过 tbody */
   min-width: 60px;
 }
 
@@ -175,7 +177,7 @@ tfoot td:first-child {
   position: sticky;
   left: 0;
   bottom: 0;
-  z-index: 998;          /* 高于 tfoot td 的 5，高于账号列 td 的 998？用 998 和账号列同级，但 bottom 固定在下方 */
+  z-index: 998;
   background: #fdf7fa;
   border-right: 1px solid #f3e6ee;
   width: 88px;
