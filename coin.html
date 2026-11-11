@@ -173,7 +173,7 @@
         const val = (data[a] !== undefined) ? data[a] : '';
         const isDone = !!daily[a];
         const numVal = parseInt(val, 10);
-        const isHigh = !isNaN(numVal) && numVal > 48;
+        const isHigh = !isNaN(numVal) && numVal >= 45;
         return `<tr data-acc="${escapeHtml(a)}">
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${idx + 1}. ${escapeHtml(a)}</span></td>
           <td>
@@ -209,7 +209,7 @@
         const a = this.dataset.acc;
         data[a] = this.value;
         const n = parseInt(this.value, 10);
-        this.classList.toggle('highlight', !isNaN(n) && n > 48);
+        this.classList.toggle('highlight', !isNaN(n) && n >= 45);
         saveData();
         notifyDirty();
         updateStats();

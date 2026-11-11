@@ -185,7 +185,7 @@
             const val = (data[a] && data[a][p]) ? data[a][p] : '';
             const isDone = !!(daily[a] && daily[a][p]);
             const numVal = parseInt(val, 10);
-            const isHigh = !isNaN(numVal) && numVal > 112;
+            const isHigh = !isNaN(numVal) && numVal >= 112;
             return `<td>
               <div class="platform-cell">
                 <input class="score ${isHigh ? 'highlight' : ''}" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-pf="${escapeHtml(p)}" value="${escapeHtml(val)}">
@@ -219,7 +219,7 @@
         if (!data[a]) data[a] = {};
         data[a][p] = this.value;
         const n = parseInt(this.value, 10);
-        this.classList.toggle('highlight', !isNaN(n) && n > 112);
+        this.classList.toggle('highlight', !isNaN(n) && n >= 112);
         saveScores();
         notifyDirty();
         updateStats();
