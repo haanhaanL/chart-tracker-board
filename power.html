@@ -78,10 +78,9 @@
   .timer-text.disabled-timer { pointer-events: none; text-decoration: none; cursor: default; }
   .stats-row.three { grid-template-columns: repeat(3, 1fr); }
 
-  /* ===== 表格层级：thead 高于 tbody/tfoot，防止下拉被 tfoot 遮住 ===== */
-  .table-box table { position: relative; }
-  .table-box thead { position: relative; z-index: 30; }
-  .table-box thead th { position: relative; z-index: 30; }
+  /* ===== 表格层级：保留 sticky 表头，同时抬高层级，防止下拉被 tfoot 遮住 ===== */
+  .table-box thead { position: sticky; top: 0; z-index: 30; }
+  .table-box thead th { position: sticky; top: 0; z-index: 30; background: inherit; }
   .table-box tbody { position: relative; z-index: 10; }
   .table-box tfoot { position: relative; z-index: 10; }
 
