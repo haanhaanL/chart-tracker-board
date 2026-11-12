@@ -13,7 +13,7 @@
     transition: 0.15s; font-size: 14px; color: transparent; font-weight: bold; user-select: none; flex-shrink: 0;
   }
   .check-box:hover { border-color: #fd8ec6; }
-  .check-box.checked { background: #ff8f40;; border-color: #ff8f40; color: #fff; }
+  .check-box.checked { background: #ff8f40; border-color: #ff8f40; color: #fff; }
   .daily-check {
     width: 22px; height: 22px; border-radius: 6px; border: 2px solid #f0d6e4; background: white;
     cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
@@ -48,10 +48,8 @@
   input.power-input:focus { border-color: #fd8ec6; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
   input.power-input::placeholder { color: #ccc; font-weight: normal; }
   input.power-input.highlight {
-    color: #22c55e;
-    border-color: #22c55e;
-    background: rgba(34, 197, 94, 0.06);
-    font-weight: 700;
+    color: #22c55e; border-color: #22c55e;
+    background: rgba(34, 197, 94, 0.06); font-weight: 700;
   }
   .disable-check {
     width: 20px; height: 20px; border-radius: 5px; border: 2px solid #f0d6e4; background: white;
@@ -79,6 +77,30 @@
   }
   .timer-text.disabled-timer { pointer-events: none; text-decoration: none; cursor: default; }
   .stats-row.three { grid-template-columns: repeat(3, 1fr); }
+
+  /* 团建电力表头：可见文字与普通表头一致，透明 select 只负责点击 */
+  .team-head {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+  }
+  .team-head select.team-head-select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    color: transparent;
+    background: transparent;
+  }
 </style>
 </head>
 <body>
@@ -89,7 +111,7 @@
   </div>
 
   <div class="toolbar">
-    <button id="powerClearDataBtn" class="danger">清空数据</button>
+    <button id="powerClearDataBtn" class="danger">清空当前组数据</button>
     <button id="powerResetTasksBtn">重置任务</button>
     <button id="powerResetBlindBtn">重置盲盒</button>
   </div>
@@ -101,14 +123,24 @@
   const SHARED = '盲盒';
   const DAILY_PLATFORMS = ['安卓', '苹果'];
   const POWER_INTERVAL_MS = 4 * 60 * 60 * 1000;
-  const RECORDS_STORAGE_KEY = 'bang_power_state';   // records（数值/备注/禁用/盲盒）
-  const DAILY_STORAGE_KEY   = 'bang_power_daily';   // 安卓/苹果勾选 + dailyDate
+  const RECORDS_STORAGE_KEY = 'bang_power_state';
+  const DAILY_STORAGE_KEY   = 'bang_power_daily';
+  const GROUPS_STORAGE_KEY  = 'bang_power_groups';
+  const CURRENT_GROUP_KEY   = 'bang_power_current_group';
+  const TEAM_SUB_STORAGE_KEY = 'bang_power_team_sub';
+
+  const TEAM_SUB_COUNT = 3;
+  const TEAM_SUB_LABELS = ['团建电力1', '团建电力2', '团建电力3'];
 
   let ACCOUNTS = [];
   let records = {};
-  let daily = {};        // { [acc]: { '安卓': bool, '苹果': bool } }
+  let daily = {};
   let dailyDate = '';
   let timerInterval = null;
+
+  let groups = ['组1'];
+  let currentGroup = '组1';
+  let currentTeamSub = 0;
 
   let modalRequestCounter = 0;
   const pendingModalResolvers = {};
@@ -163,9 +195,7 @@
 
   function notifyResize() {
     if (window.parent && window.parent !== window) {
-      try {
-        window.parent.postMessage({ type: 'resize', module: 'power', height: document.body.scrollHeight }, '*');
-      } catch(e) {}
+      try { window.parent.postMessage({ type: 'resize', module: 'power', height: document.body.scrollHeight }, '*'); } catch(e) {}
     }
   }
   function notifyDirty() {
@@ -192,7 +222,7 @@
       }
       const requestId = 'modal_' + (++modalRequestCounter);
       pendingModalResolvers[requestId] = resolve;
-      window.parent.postMessage({ type: 'show-modal', requestId: requestId, payload: payload }, '*');
+      window.parent.postMessage({ type: 'show-modal', requestId, payload }, '*');
     });
   }
 
@@ -207,14 +237,44 @@
     }
   });
 
-  // ===== 存储：records（数值/备注/禁用/盲盒） =====
+  // ===== 组 =====
+  function loadGroups() {
+    try {
+      const raw = localStorage.getItem(GROUPS_STORAGE_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length) return arr.filter(x => typeof x === 'string' && x.trim());
+      }
+    } catch(e) {}
+    return ['组1'];
+  }
+  function loadCurrentGroup() {
+    try {
+      const g = localStorage.getItem(CURRENT_GROUP_KEY);
+      if (g && groups.includes(g)) return g;
+    } catch(e) {}
+    return groups[0];
+  }
+  function loadTeamSub() {
+    try {
+      const raw = localStorage.getItem(TEAM_SUB_STORAGE_KEY);
+      const n = parseInt(raw, 10);
+      if (!isNaN(n) && n >= 0 && n < TEAM_SUB_COUNT) return n;
+    } catch(e) {}
+    return 0;
+  }
+  function saveTeamSub() {
+    localStorage.setItem(TEAM_SUB_STORAGE_KEY, String(currentTeamSub));
+  }
+
+  // ===== records =====
   function loadRecords() {
     try {
       const raw = localStorage.getItem(RECORDS_STORAGE_KEY);
       if (raw) {
         const obj = JSON.parse(raw);
         if (obj && typeof obj === 'object') {
-          if (obj.records && typeof obj.records === 'object') return obj.records; // 兼容旧结构
+          if (obj.records && typeof obj.records === 'object') return obj.records;
           return obj;
         }
       }
@@ -222,11 +282,11 @@
     return {};
   }
   function saveRecords() {
-    if (!ACCOUNTS.length) return;   // 空账号不保存
+    if (!ACCOUNTS.length) return;
     localStorage.setItem(RECORDS_STORAGE_KEY, JSON.stringify(records));
   }
 
-  // ===== 存储：每日勾选 =====
+  // ===== daily =====
   function loadPowerDaily() {
     try {
       const raw = localStorage.getItem(DAILY_STORAGE_KEY);
@@ -252,7 +312,7 @@
       DAILY_PLATFORMS.forEach(p => { daily[a][p] = false; });
     });
     dailyDate = today;
-    savePowerDaily();     // 只写 daily，不碰 records
+    savePowerDaily();
     notifyDirty();
     return true;
   }
@@ -266,10 +326,40 @@
     notifyResize();
   }
 
+  function emptyTeamPowers() {
+    const arr = [];
+    for (let i = 0; i < TEAM_SUB_COUNT; i++) arr.push('');
+    return arr;
+  }
+
+  function ensureGroupOnRecord(rec) {
+    if (!rec.groups || typeof rec.groups !== 'object') rec.groups = {};
+    groups.forEach(g => {
+      if (!rec.groups[g] || typeof rec.groups[g] !== 'object') {
+        rec.groups[g] = { teamPowers: emptyTeamPowers(), personalPower: '' };
+      } else {
+        const grp = rec.groups[g];
+        if (typeof grp.teamPower === 'string') {
+          if (!Array.isArray(grp.teamPowers)) grp.teamPowers = emptyTeamPowers();
+          if (grp.teamPowers[0] === '' && grp.teamPower !== '') grp.teamPowers[0] = grp.teamPower;
+          delete grp.teamPower;
+        }
+        if (!Array.isArray(grp.teamPowers)) grp.teamPowers = emptyTeamPowers();
+        for (let i = 0; i < TEAM_SUB_COUNT; i++) {
+          if (typeof grp.teamPowers[i] !== 'string') grp.teamPowers[i] = '';
+        }
+        if (grp.teamPowers.length > TEAM_SUB_COUNT) grp.teamPowers.length = TEAM_SUB_COUNT;
+        if (typeof grp.personalPower !== 'string') grp.personalPower = '';
+      }
+    });
+    Object.keys(rec.groups).forEach(g => {
+      if (!groups.includes(g)) delete rec.groups[g];
+    });
+  }
+
   function syncRecordsWithAccounts() {
     if (!ACCOUNTS.length) return;
 
-    // records 归一化
     const normalized = {};
     Object.keys(records).forEach(k => {
       const nk = normalizeName(k);
@@ -277,7 +367,6 @@
     });
     records = normalized;
 
-    // daily 归一化
     const normalizedDaily = {};
     Object.keys(daily).forEach(k => {
       const nk = normalizeName(k);
@@ -294,8 +383,22 @@
       if (!records[a][SHARED] || typeof records[a][SHARED] !== 'object') records[a][SHARED] = { done: false, ts: 0 };
       if (typeof records[a].disabled !== 'boolean') records[a].disabled = false;
       if (typeof records[a].remark !== 'string') records[a].remark = '';
-      if (typeof records[a].teamPower !== 'string') records[a].teamPower = '';
-      if (typeof records[a].personalPower !== 'string') records[a].personalPower = '';
+
+      if (typeof records[a].teamPower === 'string' || typeof records[a].personalPower === 'string') {
+        if (!records[a].groups) records[a].groups = {};
+        if (!records[a].groups['组1']) {
+          const tp = emptyTeamPowers();
+          if (typeof records[a].teamPower === 'string') tp[0] = records[a].teamPower;
+          records[a].groups['组1'] = {
+            teamPowers: tp,
+            personalPower: records[a].personalPower || ''
+          };
+        }
+        delete records[a].teamPower;
+        delete records[a].personalPower;
+      }
+
+      ensureGroupOnRecord(records[a]);
     });
 
     Object.keys(records).forEach(a => { if (!ACCOUNTS.includes(a)) delete records[a]; });
@@ -322,6 +425,16 @@
     </div>`;
   }
 
+  function teamHeadHtml() {
+    const opts = TEAM_SUB_LABELS.map((l, i) =>
+      `<option value="${i}"${i === currentTeamSub ? ' selected' : ''}>${escapeHtml(l)}</option>`
+    ).join('');
+    return `<span class="team-head">
+      <span class="team-head-label">${escapeHtml(TEAM_SUB_LABELS[currentTeamSub])}</span>
+      <select class="team-head-select" id="teamSubSelect" title="切换团建电力分组">${opts}</select>
+    </span>`;
+  }
+
   function renderPower() {
     const box = document.getElementById('powerTableBox');
     let rows = '';
@@ -332,15 +445,18 @@
         const rec = records[a] || {};
         const disabled = !!rec.disabled;
         const remark = rec.remark || '';
-        const teamPower = rec.teamPower || '';
-        const personalPower = rec.personalPower || '';
+        ensureGroupOnRecord(rec);
+        const g = rec.groups[currentGroup] || { teamPowers: emptyTeamPowers(), personalPower: '' };
+        const teamPowers = Array.isArray(g.teamPowers) ? g.teamPowers : emptyTeamPowers();
+        const teamPower = teamPowers[currentTeamSub] || '';
+        const personalPower = g.personalPower || '';
         const isHigh = parseInt(personalPower, 10) >= 18000;
         return `<tr data-acc="${escapeHtml(a)}" class="${disabled ? 'row-disabled' : ''}">
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${idx + 1}. ${escapeHtml(a)}</span></td>
           <td>${dailyCheckHtml(a, '安卓', !!(daily[a] && daily[a]['安卓']), disabled)}</td>
           <td>${dailyCheckHtml(a, '苹果', !!(daily[a] && daily[a]['苹果']), disabled)}</td>
           <td>${sharedHtml(a, rec[SHARED] || { done: false, ts: 0 }, disabled)}</td>
-          <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="teamPower" value="${escapeHtml(teamPower)}"></td>
+          <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="teamPower" data-sub="${currentTeamSub}" value="${escapeHtml(teamPower)}"></td>
           <td><input class="power-input${isHigh ? ' highlight' : ''}" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="personalPower" value="${escapeHtml(personalPower)}"></td>
           <td><input class="remark-input" type="text" placeholder="备注" data-acc="${escapeHtml(a)}" value="${escapeHtml(remark)}"></td>
           <td><div class="disable-check ${disabled ? 'checked' : ''}" data-acc="${escapeHtml(a)}" title="${disabled ? '取消无法使用' : '标记为无法使用'}">${disabled ? '✕' : ''}</div></td>
@@ -355,7 +471,9 @@
       </colgroup>
       <thead><tr>
         <th style="text-align:left;padding-left:6px;">账号</th>
-        <th>安卓</th><th>苹果</th><th>盲盒</th><th>团建电力</th><th>个人电力</th><th>备注</th><th>无法使用</th><th>操作</th>
+        <th>安卓</th><th>苹果</th><th>盲盒</th>
+        <th>${teamHeadHtml()}</th>
+        <th>个人电力</th><th>备注</th><th>无法使用</th><th>操作</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr>
@@ -369,6 +487,16 @@
       </tr></tfoot>
     </table>`;
 
+    const teamSel = box.querySelector('#teamSubSelect');
+    if (teamSel) {
+      teamSel.addEventListener('change', function(){
+        const n = parseInt(this.value, 10);
+        currentTeamSub = (!isNaN(n) && n >= 0 && n < TEAM_SUB_COUNT) ? n : 0;
+        saveTeamSub();
+        renderPower();
+      });
+    }
+
     box.querySelectorAll('.daily-check:not(.disabled)').forEach(el => {
       el.addEventListener('click', function(){ toggleDaily(this.dataset.acc, this.dataset.pf); });
     });
@@ -381,11 +509,18 @@
     });
     box.querySelectorAll('input.power-input').forEach(inp => {
       inp.addEventListener('input', function(){
-        const acc = this.dataset.acc, field = this.dataset.field;
+        const acc = this.dataset.acc, field = this.dataset.field, sub = parseInt(this.dataset.sub, 10);
         if (!records[acc]) return;
-        records[acc][field] = this.value;
-        if (field === 'personalPower') {
-          this.classList.toggle('highlight', parseInt(this.value, 10) >= 18000);
+        ensureGroupOnRecord(records[acc]);
+        const grp = records[acc].groups[currentGroup];
+        if (field === 'teamPower') {
+          if (!Array.isArray(grp.teamPowers)) grp.teamPowers = emptyTeamPowers();
+          grp.teamPowers[sub] = this.value;
+        } else {
+          grp[field] = this.value;
+          if (field === 'personalPower') {
+            this.classList.toggle('highlight', parseInt(this.value, 10) >= 18000);
+          }
         }
         saveRecords();
         notifyDirty();
@@ -439,7 +574,7 @@
     if (!daily[acc]) daily[acc] = {};
     daily[acc][pf] = !daily[acc][pf];
     if (dailyDate !== todayStr()) dailyDate = todayStr();
-    savePowerDaily();       // 只写 daily
+    savePowerDaily();
     notifyDirty();
     const el = document.querySelector(`.daily-check[data-acc="${CSS.escape(acc)}"][data-pf="${CSS.escape(pf)}"]`);
     if (el) { el.classList.toggle('checked', daily[acc][pf]); el.textContent = daily[acc][pf] ? '✓' : ''; }
@@ -539,8 +674,11 @@
     let teamSum = 0, personalSum = 0;
     ACCOUNTS.forEach(a => {
       const rec = records[a] || {};
-      const t = parseInt(rec.teamPower, 10);
-      const p = parseInt(rec.personalPower, 10);
+      ensureGroupOnRecord(rec);
+      const g = rec.groups[currentGroup] || { teamPowers: emptyTeamPowers(), personalPower: '' };
+      const tp = Array.isArray(g.teamPowers) ? g.teamPowers : emptyTeamPowers();
+      const t = parseInt(tp[currentTeamSub], 10);
+      const p = parseInt(g.personalPower, 10);
       if (!isNaN(t)) teamSum += t;
       if (!isNaN(p)) personalSum += p;
     });
@@ -608,15 +746,20 @@
     let has = false;
     ACCOUNTS.forEach(a => {
       const rec = records[a];
-      if (rec && (rec.teamPower || rec.personalPower)) has = true;
+      if (rec && rec.groups && rec.groups[currentGroup]) {
+        const g = rec.groups[currentGroup];
+        const tp = Array.isArray(g.teamPowers) ? g.teamPowers : [];
+        const hasTeam = tp.some(v => v && String(v).trim() !== '');
+        if (hasTeam || (g.personalPower && String(g.personalPower).trim() !== '')) has = true;
+      }
     });
-    if (!has) { showAlert('提示', '当前所有电力数值已经是空的'); return; }
-    showConfirm('清空数据', '确定要清空所有账号的团建电力和个人电力数值吗？勾选状态会保留。', function(ok) {
+    if (!has) { showAlert('提示', `当前组「${currentGroup}」所有电力数值已经是空的`); return; }
+    showConfirm('清空当前组数据', `确定要清空所有账号「${currentGroup}」的团建电力（3 个子组）和个人电力数值吗？其他组、勾选状态会保留。`, function(ok) {
       if (!ok) return;
       ACCOUNTS.forEach(a => {
         if (!records[a]) records[a] = {};
-        records[a].teamPower = '';
-        records[a].personalPower = '';
+        ensureGroupOnRecord(records[a]);
+        records[a].groups[currentGroup] = { teamPowers: emptyTeamPowers(), personalPower: '' };
       });
       saveRecords();
       notifyDirty();
@@ -666,12 +809,12 @@
 
   function showAlert(title, message) {
     if (window.parent && window.parent !== window) {
-      requestModal({ title: title, messageHtml: escapeHtml(message), showInput: false, showCancel: false, okText: '知道了' });
+      requestModal({ title, messageHtml: escapeHtml(message), showInput: false, showCancel: false, okText: '知道了' });
     } else { alert(message); }
   }
   function showConfirm(title, message, onResult) {
     if (window.parent && window.parent !== window) {
-      requestModal({ title: title, messageHtml: escapeHtml(message), showInput: false, showCancel: true, okText: '确定', cancelText: '取消' }).then(r => { onResult(!!(r && r.confirmed)); });
+      requestModal({ title, messageHtml: escapeHtml(message), showInput: false, showCancel: true, okText: '确定', cancelText: '取消' }).then(r => { onResult(!!(r && r.confirmed)); });
     } else { onResult(confirm(message)); }
   }
 
@@ -723,6 +866,10 @@
       });
       tableClone.querySelectorAll('.account-cell').forEach(el => el.removeAttribute('title'));
       tableClone.querySelectorAll('[data-acc]').forEach(el => el.setAttribute('data-acc', '***'));
+
+      const teamSelClone = tableClone.querySelector('#teamSubSelect');
+      if (teamSelClone) teamSelClone.remove();
+
       tableClone.scrollLeft = 0;
       tableClone.style.maxHeight = 'none';
       tableClone.style.overflowY = 'visible';
@@ -759,7 +906,10 @@
   });
 
   function init() {
-    // 旧结构迁移：{records, dailyDate} -> 拆成 records + daily
+    groups = loadGroups();
+    currentGroup = loadCurrentGroup();
+    currentTeamSub = loadTeamSub();
+
     try {
       const raw = localStorage.getItem(RECORDS_STORAGE_KEY);
       if (raw) {
@@ -776,10 +926,7 @@
             });
           });
           if (typeof obj.dailyDate === 'string') dailyDate = obj.dailyDate;
-          if (ACCOUNTS.length) {
-            saveRecords();
-            savePowerDaily();
-          }
+          if (ACCOUNTS.length) { saveRecords(); savePowerDaily(); }
         } else {
           records = obj || {};
         }
@@ -798,6 +945,7 @@
     } else {
       renderPower();
     }
+
     document.getElementById('powerClearDataBtn').addEventListener('click', clearPowerData);
     document.getElementById('powerResetTasksBtn').addEventListener('click', resetPowerTasks);
     document.getElementById('powerResetBlindBtn').addEventListener('click', resetPowerBlind);
