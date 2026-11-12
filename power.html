@@ -78,29 +78,65 @@
   .timer-text.disabled-timer { pointer-events: none; text-decoration: none; cursor: default; }
   .stats-row.three { grid-template-columns: repeat(3, 1fr); }
 
-  /* 团建电力表头：可见文字与普通表头一致，透明 select 只负责点击 */
-  .team-head {
+  /* ===== 表格层级：thead 高于 tbody/tfoot，防止下拉被 tfoot 遮住 ===== */
+  .table-box table { position: relative; }
+  .table-box thead { position: relative; z-index: 30; }
+  .table-box thead th { position: relative; z-index: 30; }
+  .table-box tbody { position: relative; z-index: 10; }
+  .table-box tfoot { position: relative; z-index: 10; }
+
+  /* ===== 自定义团建电力下拉 ===== */
+  .team-dropdown {
     position: relative;
+    z-index: 40;
     display: inline-block;
-    cursor: pointer;
+    text-align: center;
+    min-width: 72px;
   }
-  .team-head select.team-head-select {
+  .team-dropdown .td-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .team-dropdown .td-arrow {
+    font-size: 9px;
+    line-height: 1;
+    transform: scaleY(0.8);
+    opacity: 0.9;
+  }
+  .team-dropdown .td-menu {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-    border: 0;
-    padding: 0;
-    margin: 0;
-    font-family: inherit;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    color: transparent;
-    background: transparent;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid #f0d6e4;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(234,54,144,0.18);
+    padding: 4px;
+    z-index: 50;
+    display: none;
+    min-width: 96px;
   }
+  .team-dropdown.open .td-menu { display: block; }
+  .team-dropdown .td-item {
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #555;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: center;
+    font-family: inherit;
+    font-weight: normal;
+  }
+  .team-dropdown .td-item:hover { background: rgba(234,54,144,0.08); color: #fd8ec6; }
+  .team-dropdown .td-item.active { background: rgba(234,54,144,0.12); color: #fd8ec6; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -426,13 +462,48 @@
   }
 
   function teamHeadHtml() {
-    const opts = TEAM_SUB_LABELS.map((l, i) =>
-      `<option value="${i}"${i === currentTeamSub ? ' selected' : ''}>${escapeHtml(l)}</option>`
+    const items = TEAM_SUB_LABELS.map((l, i) =>
+      `<div class="td-item${i === currentTeamSub ? ' active' : ''}" data-sub="${i}">${escapeHtml(l)}</div>`
     ).join('');
-    return `<span class="team-head">
-      <span class="team-head-label">${escapeHtml(TEAM_SUB_LABELS[currentTeamSub])}</span>
-      <select class="team-head-select" id="teamSubSelect" title="切换团建电力分组">${opts}</select>
-    </span>`;
+    return `<div class="team-dropdown" id="teamDropdown">
+      <div class="td-trigger" id="teamDropdownTrigger">
+        <span>${escapeHtml(TEAM_SUB_LABELS[currentTeamSub])}</span>
+        <span class="td-arrow">▾</span>
+      </div>
+      <div class="td-menu" id="teamDropdownMenu">${items}</div>
+    </div>`;
+  }
+
+  function bindTeamDropdown() {
+    const dd = document.getElementById('teamDropdown');
+    const trigger = document.getElementById('teamDropdownTrigger');
+    const menu = document.getElementById('teamDropdownMenu');
+    if (!dd || !trigger || !menu) return;
+
+    trigger.addEventListener('click', function(e){
+      e.stopPropagation();
+      dd.classList.toggle('open');
+    });
+
+    menu.querySelectorAll('.td-item').forEach(item => {
+      item.addEventListener('click', function(e){
+        e.stopPropagation();
+        const n = parseInt(this.dataset.sub, 10);
+        currentTeamSub = (!isNaN(n) && n >= 0 && n < TEAM_SUB_COUNT) ? n : 0;
+        saveTeamSub();
+        dd.classList.remove('open');
+        renderPower();
+      });
+    });
+
+    // 点击页面其他位置关闭
+    if (!window.__teamDropdownGlobalBound) {
+      window.__teamDropdownGlobalBound = true;
+      document.addEventListener('click', function(){
+        const d = document.getElementById('teamDropdown');
+        if (d) d.classList.remove('open');
+      });
+    }
   }
 
   function renderPower() {
@@ -487,15 +558,7 @@
       </tr></tfoot>
     </table>`;
 
-    const teamSel = box.querySelector('#teamSubSelect');
-    if (teamSel) {
-      teamSel.addEventListener('change', function(){
-        const n = parseInt(this.value, 10);
-        currentTeamSub = (!isNaN(n) && n >= 0 && n < TEAM_SUB_COUNT) ? n : 0;
-        saveTeamSub();
-        renderPower();
-      });
-    }
+    bindTeamDropdown();
 
     box.querySelectorAll('.daily-check:not(.disabled)').forEach(el => {
       el.addEventListener('click', function(){ toggleDaily(this.dataset.acc, this.dataset.pf); });
@@ -671,6 +734,7 @@
       else { nextEl.textContent = activeAccounts.length > 0 ? '全部可做' : '—'; nextEl.style.color = '#22c55e'; }
     }
 
+    // 表尾合计：当前组 + 当前团建子组 + 个人电力
     let teamSum = 0, personalSum = 0;
     ACCOUNTS.forEach(a => {
       const rec = records[a] || {};
@@ -682,10 +746,27 @@
       if (!isNaN(t)) teamSum += t;
       if (!isNaN(p)) personalSum += p;
     });
-    const totalSum = teamSum + personalSum;
+
+    // 顶部「电力总和」：所有电力组 × 所有团建子组 + 所有个人电力
+    let grandTotal = 0;
+    ACCOUNTS.forEach(a => {
+      const rec = records[a] || {};
+      ensureGroupOnRecord(rec);
+      Object.keys(rec.groups || {}).forEach(gName => {
+        const g = rec.groups[gName];
+        if (!g || typeof g !== 'object') return;
+        const tp = Array.isArray(g.teamPowers) ? g.teamPowers : [];
+        for (let i = 0; i < TEAM_SUB_COUNT; i++) {
+          const n = parseInt(tp[i], 10);
+          if (!isNaN(n)) grandTotal += n;
+        }
+        const p = parseInt(g.personalPower, 10);
+        if (!isNaN(p)) grandTotal += p;
+      });
+    });
 
     const sumEl = document.getElementById('powerSum');
-    if (sumEl) sumEl.textContent = totalSum.toLocaleString();
+    if (sumEl) sumEl.textContent = grandTotal.toLocaleString();
 
     const androidDone = activeAccounts.filter(a => daily[a] && daily[a]['安卓']).length;
     const iosDone = activeAccounts.filter(a => daily[a] && daily[a]['苹果']).length;
@@ -867,8 +948,15 @@
       tableClone.querySelectorAll('.account-cell').forEach(el => el.removeAttribute('title'));
       tableClone.querySelectorAll('[data-acc]').forEach(el => el.setAttribute('data-acc', '***'));
 
-      const teamSelClone = tableClone.querySelector('#teamSubSelect');
-      if (teamSelClone) teamSelClone.remove();
+      // 截图时把自定义下拉收成纯文字
+      const menuClone = tableClone.querySelector('#teamDropdownMenu');
+      if (menuClone) menuClone.remove();
+      const arrowClone = tableClone.querySelector('.td-arrow');
+      if (arrowClone) arrowClone.remove();
+      const triggerClone = tableClone.querySelector('#teamDropdownTrigger');
+      if (triggerClone) {
+        triggerClone.style.cursor = 'default';
+      }
 
       tableClone.scrollLeft = 0;
       tableClone.style.maxHeight = 'none';
