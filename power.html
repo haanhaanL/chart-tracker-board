@@ -47,6 +47,12 @@
   input.power-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   input.power-input:focus { border-color: #fd8ec6; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
   input.power-input::placeholder { color: #ccc; font-weight: normal; }
+  input.power-input.highlight {
+    color: #22c55e;
+    border-color: #22c55e;
+    background: rgba(34, 197, 94, 0.06);
+    font-weight: 700;
+  }
   .disable-check {
     width: 20px; height: 20px; border-radius: 5px; border: 2px solid #f0d6e4; background: white;
     cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
@@ -328,13 +334,14 @@
         const remark = rec.remark || '';
         const teamPower = rec.teamPower || '';
         const personalPower = rec.personalPower || '';
+        const isHigh = parseInt(personalPower, 10) >= 18000;
         return `<tr data-acc="${escapeHtml(a)}" class="${disabled ? 'row-disabled' : ''}">
           <td class="account-cell" title="${escapeHtml(a)}"><span class="account-text">${idx + 1}. ${escapeHtml(a)}</span></td>
           <td>${dailyCheckHtml(a, '安卓', !!(daily[a] && daily[a]['安卓']), disabled)}</td>
           <td>${dailyCheckHtml(a, '苹果', !!(daily[a] && daily[a]['苹果']), disabled)}</td>
           <td>${sharedHtml(a, rec[SHARED] || { done: false, ts: 0 }, disabled)}</td>
           <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="teamPower" value="${escapeHtml(teamPower)}"></td>
-          <td><input class="power-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="personalPower" value="${escapeHtml(personalPower)}"></td>
+          <td><input class="power-input${isHigh ? ' highlight' : ''}" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" data-field="personalPower" value="${escapeHtml(personalPower)}"></td>
           <td><input class="remark-input" type="text" placeholder="备注" data-acc="${escapeHtml(a)}" value="${escapeHtml(remark)}"></td>
           <td><div class="disable-check ${disabled ? 'checked' : ''}" data-acc="${escapeHtml(a)}" title="${disabled ? '取消无法使用' : '标记为无法使用'}">${disabled ? '✕' : ''}</div></td>
           <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
@@ -377,6 +384,9 @@
         const acc = this.dataset.acc, field = this.dataset.field;
         if (!records[acc]) return;
         records[acc][field] = this.value;
+        if (field === 'personalPower') {
+          this.classList.toggle('highlight', parseInt(this.value, 10) >= 18000);
+        }
         saveRecords();
         notifyDirty();
         updatePowerStats();
