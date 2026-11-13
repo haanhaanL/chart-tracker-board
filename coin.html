@@ -35,6 +35,16 @@
   }
   .del-btn:hover { background: rgba(231,76,60,0.1); border-color: #ff8f40; }
   input.coin-input.highlight { color: #22c55e; border-color: #22c55e; background: rgba(34, 197, 94, 0.06); font-weight: bold; }
+  input.exchange-input {
+    width: 100%; max-width: 100px; height: 30px; padding: 0 6px; text-align: center;
+    background: white; border: 1px solid #f0d6e4; border-radius: 6px;
+    color: #333; font-size: 12px; font-weight: bold; outline: none; transition: 0.15s;
+    font-family: inherit; -moz-appearance: textfield; appearance: textfield;
+  }
+  input.exchange-input::-webkit-outer-spin-button,
+  input.exchange-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input.exchange-input:focus { border-color: #fd8ec6; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
+  input.exchange-input::placeholder { color: #ccc; font-weight: normal; }
 </style>
 </head>
 <body>
@@ -88,6 +98,7 @@
     }
   }
 
+  // data: { account: { coin: '', exchange: '' } }
   function loadData() {
     try {
       const raw = localStorage.getItem(DATA_STORAGE_KEY);
@@ -99,7 +110,7 @@
     return {};
   }
   function saveData() {
-    if (!ACCOUNTS.length) return;   // 空账号不保存，防止覆盖
+    if (!ACCOUNTS.length) return;
     localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data));
   }
   function loadDaily() {
@@ -115,17 +126,17 @@
     return { daily: {}, dailyDate: '' };
   }
   function saveDaily() {
-    if (!ACCOUNTS.length) return;   // 空账号不保存
+    if (!ACCOUNTS.length) return;
     localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify({ daily, dailyDate }));
   }
 
   function checkDailyReset() {
-    if (!ACCOUNTS.length) return false;   // 没账号不重置、不保存
+    if (!ACCOUNTS.length) return false;
     const today = todayStr();
     if (dailyDate === today) return false;
     ACCOUNTS.forEach(a => { if (!daily[a]) daily[a] = false; });
     dailyDate = today;
-    saveDaily();          // 只写 daily，不碰 scores
+    saveDaily();
     notifyDirty();
     return true;
   }
@@ -139,8 +150,14 @@
     notifyResize();
   }
 
+  function ensureRecord(a) {
+    if (!data[a] || typeof data[a] !== 'object') data[a] = { coin: '', exchange: '' };
+    if (typeof data[a].coin !== 'string') data[a].coin = '';
+    if (typeof data[a].exchange !== 'string') data[a].exchange = '';
+  }
+
   function syncDataWithAccounts() {
-    if (!ACCOUNTS.length) return;   // 账号未同步，绝不动数据
+    if (!ACCOUNTS.length) return;
 
     const normalized = {};
     Object.keys(data).forEach(k => {
@@ -148,16 +165,19 @@
       if (!normalized[nk]) normalized[nk] = data[k];
     });
     data = normalized;
+
     const normalizedDaily = {};
     Object.keys(daily).forEach(k => {
       const nk = normalizeName(k);
       if (!normalizedDaily[nk]) normalizedDaily[nk] = daily[k];
     });
     daily = normalizedDaily;
+
     ACCOUNTS.forEach(a => {
-      if (data[a] === undefined) data[a] = '';
+      ensureRecord(a);
       if (typeof daily[a] !== 'boolean') daily[a] = false;
     });
+
     Object.keys(data).forEach(a => { if (!ACCOUNTS.includes(a)) delete data[a]; });
     Object.keys(daily).forEach(a => { if (!ACCOUNTS.includes(a)) delete daily[a]; });
     ACCOUNTS = [...new Set(ACCOUNTS)];
@@ -167,10 +187,12 @@
     const box = document.getElementById('tableBox');
     let rows = '';
     if (ACCOUNTS.length === 0) {
-      rows = `<tr class="empty-row"><td colspan="4">当前无账号，请在顶部「打榜账号」输入框中添加</td></tr>`;
+      rows = `<tr class="empty-row"><td colspan="5">当前无账号，请在顶部「打榜账号」输入框中添加</td></tr>`;
     } else {
       rows = ACCOUNTS.map((a, idx) => {
-        const val = (data[a] !== undefined) ? data[a] : '';
+        ensureRecord(a);
+        const val = data[a].coin;
+        const exchange = data[a].exchange;
         const isDone = !!daily[a];
         const numVal = parseInt(val, 10);
         const isHigh = !isNaN(numVal) && numVal >= 45;
@@ -182,6 +204,11 @@
               <span class="coin-unit">w</span>
             </div>
           </td>
+          <td>
+            <div class="coin-cell">
+              <input class="exchange-input" type="number" min="0" step="1" placeholder="—" data-acc="${escapeHtml(a)}" value="${escapeHtml(exchange)}">
+            </div>
+          </td>
           <td><div class="daily-check ${isDone ? 'checked' : ''}" data-acc="${escapeHtml(a)}" title="${isDone ? '点击取消每日' : '点击标记每日完成'}">${isDone ? '✓' : ''}</div></td>
           <td><button class="del-btn" data-acc="${escapeHtml(a)}" title="删除该账号">×</button></td>
         </tr>`;
@@ -190,15 +217,16 @@
 
     box.innerHTML = `<table>
       <colgroup>
-        <col style="width:88px"><col style="width:auto"><col style="width:auto"><col style="width:36px">
+        <col style="width:88px"><col style="width:auto"><col style="width:auto"><col style="width:auto"><col style="width:36px">
       </colgroup>
       <thead><tr>
-        <th style="text-align:left;padding-left:6px;">账号</th><th>金币</th><th>每日</th><th>操作</th>
+        <th style="text-align:left;padding-left:6px;">账号</th><th>金币</th><th>已兑换</th><th>每日</th><th>操作</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr>
         <td class="account-cell" style="color:#fd8ec6;">合计</td>
         <td><div class="col-total" id="foot-coin">0w</div></td>
+        <td><div class="col-total" id="foot-exchange">0</div></td>
         <td><div class="col-total" id="foot-done">0 / 0</div></td>
         <td></td>
       </tr></tfoot>
@@ -207,9 +235,22 @@
     box.querySelectorAll('input.coin-input').forEach(inp => {
       inp.addEventListener('input', function(){
         const a = this.dataset.acc;
-        data[a] = this.value;
+        ensureRecord(a);
+        data[a].coin = this.value;
         const n = parseInt(this.value, 10);
         this.classList.toggle('highlight', !isNaN(n) && n >= 45);
+        saveData();
+        notifyDirty();
+        updateStats();
+        notifyResize();
+      });
+    });
+
+    box.querySelectorAll('input.exchange-input').forEach(inp => {
+      inp.addEventListener('input', function(){
+        const a = this.dataset.acc;
+        ensureRecord(a);
+        data[a].exchange = this.value;
         saveData();
         notifyDirty();
         updateStats();
@@ -241,11 +282,13 @@
   }
 
   function updateStats() {
-    let total = 0, done = 0;
+    let total = 0, exchangeTotal = 0, done = 0;
     ACCOUNTS.forEach(a => {
-      const raw = (data[a] !== undefined) ? data[a] : '';
-      const n = parseInt(raw, 10);
+      ensureRecord(a);
+      const n = parseInt(data[a].coin, 10);
       if (!isNaN(n)) total += n;
+      const e = parseInt(data[a].exchange, 10);
+      if (!isNaN(e)) exchangeTotal += e;
       if (daily[a]) done++;
     });
     const totalEl = document.getElementById('totalCoin');
@@ -254,6 +297,8 @@
     if (doneEl) doneEl.textContent = `${done} / ${ACCOUNTS.length}`;
     const footCoin = document.getElementById('foot-coin');
     if (footCoin) footCoin.textContent = `${total.toLocaleString()}w`;
+    const footExchange = document.getElementById('foot-exchange');
+    if (footExchange) footExchange.textContent = exchangeTotal.toLocaleString();
     const footDone = document.getElementById('foot-done');
     if (footDone) footDone.textContent = `${done} / ${ACCOUNTS.length}`;
     notifyResize();
@@ -263,11 +308,12 @@
     if (!ACCOUNTS.length) { alert('当前没有账号，无需清空数据'); return; }
     let has = false;
     ACCOUNTS.forEach(a => {
-      if (data[a] !== undefined && String(data[a]).trim() !== '') has = true;
+      ensureRecord(a);
+      if (String(data[a].coin).trim() !== '' || String(data[a].exchange).trim() !== '') has = true;
     });
     if (!has) { alert('当前所有金币数据已经是空的'); return; }
-    if (!confirm('确定要清空所有账号的金币数据吗？每日任务勾选会保留。')) return;
-    ACCOUNTS.forEach(a => { data[a] = ''; });
+    if (!confirm('确定要清空所有账号的金币和已兑换数据吗？每日任务勾选会保留。')) return;
+    ACCOUNTS.forEach(a => { ensureRecord(a); data[a].coin = ''; data[a].exchange = ''; });
     saveData();
     notifyDirty();
     renderAll();
@@ -278,7 +324,7 @@
     let has = false;
     ACCOUNTS.forEach(a => { if (daily[a]) has = true; });
     if (!has) { alert('当前所有每日任务勾选已经是空的'); return; }
-    if (!confirm('确定要重置所有账号的每日任务勾选吗？金币数据会保留。')) return;
+    if (!confirm('确定要重置所有账号的每日任务勾选吗？金币和已兑换数据会保留。')) return;
     ACCOUNTS.forEach(a => { daily[a] = false; });
     dailyDate = todayStr();
     saveDaily();
